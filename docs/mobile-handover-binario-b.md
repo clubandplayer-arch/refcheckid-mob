@@ -12,6 +12,16 @@ Obiettivo mobile:
 - non modificare contratti API, semantica degli stati o logiche di approvazione;
 - usare questo documento come checklist di accettazione.
 
+### 1.1 Regola operativa Wave-by-Wave
+
+Lo sviluppo mobile deve procedere una Wave alla volta. Non è consentito passare alla Wave successiva finché la Wave corrente non raggiunge il 100% di Feature Parity rispetto al Web, verificata usando questo documento come fonte di riferimento e i file/test Web indicati come fonte di verità implementativa.
+
+Regole operative:
+- ogni Wave deve avere checklist esplicita, test portati o equivalenti mobile, e verifica manuale degli stati loading/error/empty;
+- eventuali adattamenti UX mobile sono ammessi solo se non cambiano endpoint, payload, stati, validazioni, permessi o sequenze di workflow;
+- se una regola non è chiara in questa documentazione, fermare la Wave e consultare direttamente i sorgenti Web e i test indicati prima di implementare;
+- il completamento di una Wave deve essere dichiarato solo quando tutte le voci applicabili sono completate, testate e confrontate con il comportamento Web.
+
 ## 2. Architettura Web da replicare
 
 ### 2.1 Stack e runtime
