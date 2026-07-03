@@ -12,7 +12,25 @@ Obiettivo mobile:
 - non modificare contratti API, semantica degli stati o logiche di approvazione;
 - usare questo documento come checklist di accettazione.
 
-### 1.1 Regola operativa Wave-by-Wave
+### 1.1 Sprint 0 obbligatorio: validazione Handover
+
+Prima di creare codice mobile, schermate, componenti o avviare la Wave 1, il responsabile Binario B deve eseguire esclusivamente lo Sprint 0. Lo Sprint 0 deve:
+
+1. analizzare completamente la repository Web;
+2. analizzare integralmente questo documento;
+3. verificare che ogni affermazione dell’Handover corrisponda realmente al codice Web;
+4. individuare incongruenze, omissioni o funzionalità Web non documentate;
+5. bloccare lo sviluppo Mobile se emergono differenze o se i sorgenti Web/test indicati non sono disponibili;
+6. aprire una PR esclusivamente di aggiornamento documentazione quando servono correzioni;
+7. dichiarare `Handover VALIDATO` solo quando la verifica codice Web ↔ documento è completa e senza scostamenti.
+
+Esito Sprint 0 consentito:
+- `Handover VALIDATO`;
+- `PR di correzione documentazione aperta`.
+
+Stato di validazione in questa repository mobile: **non validato** finché i sorgenti Web citati in questo documento, inclusi `refcheckid-web/src/**` e `refcheckid-web/tests/**`, non sono presenti o comunque accessibili per confronto diretto.
+
+### 1.2 Regola operativa Wave-by-Wave
 
 Lo sviluppo mobile deve procedere una Wave alla volta. Non è consentito passare alla Wave successiva finché la Wave corrente non raggiunge il 100% di Feature Parity rispetto al Web, verificata usando questo documento come fonte di riferimento e i file/test Web indicati come fonte di verità implementativa.
 
