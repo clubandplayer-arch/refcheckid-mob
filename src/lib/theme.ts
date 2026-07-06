@@ -9,6 +9,11 @@ export const colors = {
   dangerBackground: "#fef2f2",
   dangerBorder: "#fecaca",
   success: "#16a34a",
+  successBackground: "#dcfce7",
+  successText: "#166534",
+  infoBackground: "#dbeafe",
+  infoText: "#1e3a8a",
+  dangerText: "#7f1d1d",
   toastInfo: "#1e293b",
   white: "#ffffff",
 } as const;

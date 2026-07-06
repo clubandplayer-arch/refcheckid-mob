@@ -320,3 +320,53 @@
 - [x] Feature Parity mantenuta con la Source of Truth Web.
 - [x] Nessuna modifica architetturale fuori dallo scope della Wave.
 - [x] Nessuna regressione rilevata durante la review.
+
+## Wave 7 – Match Lifecycle
+
+### Stato review
+
+- [x] Approved
+
+### File Web analizzati
+
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/app/referee/page.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/app/referee/match/page.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/features/referee/referee-match-workflow.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/referee-api-client.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/referee-types.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/submitted-match-sheet.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/components/auth/auth-gate.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/components/ui/button.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/components/ui/card.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/components/ui/state.tsx`
+
+### File Mobile approvati
+
+- [x] `app/referee/index.tsx`
+- [x] `app/referee/match.tsx`
+- [x] `src/features/referee/referee-match-workflow.tsx`
+- [x] `src/lib/theme.ts`
+
+### Checklist Feature Parity
+
+- [x] Dashboard arbitro conforme
+- [x] Navigazione al workflow match
+- [x] AuthGate referee verificato
+- [x] Workflow Distinte conforme
+- [x] Visualizzazione distinte conforme
+- [x] Verifica invio distinte conforme
+- [x] Lock distinte conforme
+- [x] Start Recognition conforme
+- [x] Nessuna funzionalità Wave 8 implementata
+- [x] Feature Parity raggiunta
+
+### Esito review
+
+- [x] Approved
+
+### Annotazioni tecniche
+
+- [x] Wave limitata esclusivamente al Match Lifecycle.
+- [x] Step Riconoscimento e Referto mantenuti come placeholder per rispettare il perimetro della roadmap.
+- [x] Nessuna modifica alla Source of Truth.
+- [x] Nessun documento aggiuntivo creato.
