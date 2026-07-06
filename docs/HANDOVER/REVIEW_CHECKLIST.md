@@ -1,6 +1,6 @@
 # RefCheckID — Review Checklist
 
-> Wave 1, Wave 2, Wave 3 e Wave 4 approvate dopo review tecnica. Tutti i punti verificati risultano completati.
+> Wave 1, Wave 2, Wave 3, Wave 4 e Wave 5 approvate dopo review tecnica. Tutti i punti verificati risultano completati.
 
 ## Wave 1 — Fondazioni applicative, configurazione e design system minimo
 
@@ -194,3 +194,80 @@
 - [x] CTA `Apri distinta` mantenuta nel layout ma resa temporaneamente non interattiva perché la route `/manager/match-sheet` appartiene alle Wave successive.
 - [x] Test sorgente approvati per clubId manager, ordinamento `scheduledAt`, fallback venue, stato distinta e notifiche.
 - [x] Review finale Wave 4 completata e approvata dopo verifica tecnica.
+
+## Wave 5 — Distinta Manager: roster, selezione, ruoli e validazioni core
+
+### Stato review
+
+- [x] Wave 5 completata.
+- [x] Wave 5 verificata.
+- [x] Wave 5 approvata.
+- [x] Feature Parity validata per roster, selezione, ruoli e validazioni core della distinta Manager rispetto alla Source of Truth Web.
+
+### File Web analizzati
+
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/app/manager/match-sheet/page.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/features/manager/match-sheet-workflow.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/match-sheet-validation.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/api-client.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/manager-team.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/pilot-data.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/manager-photo-store.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/tests/unit/match-sheet-validation.test.ts`
+
+### File Mobile modificati e approvati
+
+- [x] `app/manager/index.tsx`
+- [x] `app/manager/match-sheet.tsx`
+- [x] `src/features/manager/match-sheet-workflow.tsx`
+- [x] `src/lib/match-sheet-validation.ts`
+- [x] `__tests__/match-sheet-validation.test.ts`
+
+### Checklist Feature Parity Wave 5
+
+- [x] Page guard manager.
+- [x] Fetch players.
+- [x] Fetch staff.
+- [x] Fetch sheet club.
+- [x] Fallback pilot roster.
+- [x] Override foto approvate applicati.
+- [x] Ricerca nome/cognome.
+- [x] Ordinamento per cognome.
+- [x] Select/deselect player.
+- [x] Sospesi bloccati/non validi.
+- [x] Reset capitano/vice su deselezione.
+- [x] Select/deselect staff.
+- [x] Numero maglia.
+- [x] Ruolo starter/reserve.
+- [x] Flag goalkeeper.
+- [x] Flag captain.
+- [x] Flag vice captain.
+- [x] Reorder convocati equivalente.
+- [x] Read-only non draft per editing.
+- [x] Validazione almeno un giocatore.
+- [x] Validazione almeno uno staff.
+- [x] Validazione numeri mancanti.
+- [x] Validazione numeri duplicati.
+- [x] Validazione sospesi.
+- [x] Validazione 11 titolari.
+- [x] Validazione 1 portiere titolare.
+- [x] Validazione massimo 20 riserve.
+- [x] Validazione massimo 5 staff.
+- [x] Validazione massimo 1 capitano.
+- [x] Validazione capitano titolare.
+- [x] Validazione massimo 1 vice.
+- [x] Validazione vice titolare.
+- [x] Validazione capitano/vice diversi.
+
+### Esito review
+
+- [x] Wave 5 approvata dopo review tecnica.
+- [x] Nessuna regressione evidente rilevata rispetto alle Wave precedenti.
+- [x] Nessuna funzionalità appartenente alla Wave 6 anticipata.
+
+### Annotazioni tecniche approvate
+
+- [x] Drag&drop Web adattato a pulsanti `Su` / `Giù` su Mobile mantenendo l'ordine finale dei convocati equivalente.
+- [x] Validazioni core allineate alla Source of Truth Web e ai messaggi business principali.
+- [x] Nessuna funzionalità della Wave 6 implementata: upload foto, crop, richieste approvazione e submit lifecycle restano esclusi.
+- [x] Documentazione aggiornata dopo approvazione.
