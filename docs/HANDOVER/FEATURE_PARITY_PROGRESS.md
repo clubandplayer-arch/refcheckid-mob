@@ -4,11 +4,11 @@
 
 - Binario: **B — Mobile Feature Parity**
 - Source of Truth: `source-of-truth/refcheckid`
-- Wave completate/approvate: **8/13**
+- Wave completate/approvate: **9/13**
 - Wave implementate e in review: **0/13**
-- Percentuale di completamento approvato: **62%**
-- Percentuale di implementazione consegnata: **62%**
-- Stato corrente: **Wave 7 – Completed / Reviewed / Approved**
+- Percentuale di completamento approvato: **69%**
+- Percentuale di implementazione consegnata: **69%**
+- Stato corrente: **Wave 8 – Completed / Reviewed / Approved**
 
 ## Legenda stati
 
@@ -31,7 +31,7 @@
 | Wave 5 | Distinta Manager: roster, selezione, ruoli e validazioni core | ✅ Completed / Reviewed / Approved | 100% | — | 100% |
 | Wave 6 | Distinta Manager: upload foto, richieste approvazione e submit lifecycle | ✅ Completed | Approved | — | 100% |
 | Wave 7 | Dashboard Arbitro e verifica distinte | ✅ Completed | Approved | — | 100% |
-| Wave 8 | Riconoscimento arbitrale completo | ⚪ Not Started | 0% | — | 0% |
+| Wave 8 | Riconoscimento arbitrale completo | Completed | Approved | — | 100% |
 | Wave 9 | Referto arbitrale completo | ⚪ Not Started | 0% | — | 0% |
 | Wave 10 | Federazione: cruscotto e calendario | ⚪ Not Started | 0% | — | 0% |
 | Wave 11 | Federazione: referti, foto, storico e audit | ⚪ Not Started | 0% | — | 0% |
