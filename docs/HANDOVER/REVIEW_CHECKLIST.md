@@ -416,3 +416,62 @@
 - [x] Wave 8 approvata.
 - [x] Nessuna funzionalità appartenente alla Wave 9 implementata.
 - [x] Workflow di riconoscimento conforme alla Source of Truth.
+
+## Wave 9 – Match Report
+
+### Stato Review
+
+Approved
+
+### File Web analizzati
+
+- `source-of-truth/refcheckid/refcheckid-web/src/features/referee/referee-match-workflow.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/referee-report-validation.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/referee-api-client.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/referee-types.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/api-client.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/submitted-report.ts`
+- `source-of-truth/refcheckid/refcheckid-web/tests/unit/referee-report-validation.test.ts`
+
+### File Mobile approvati
+
+- `src/features/referee/referee-match-workflow.tsx`
+- `src/lib/referee-report-validation.ts`
+- `__tests__/referee-report-validation.test.ts`
+
+### Checklist Feature Parity
+
+- [x] caricamento draft referto
+- [x] gate sul riconoscimento completato
+- [x] workflow Match Report
+- [x] gestione risultato
+- [x] gestione gol
+- [x] gestione ammonizioni
+- [x] gestione espulsioni
+- [x] gestione sostituzioni
+- [x] gestione note arbitro
+- [x] riepilogo finale
+- [x] validazioni Web-equivalenti
+- [x] submit referto
+- [x] persistenza locale prevista
+- [x] test di regressione aggiunti
+
+### Esito review
+
+Feature Parity raggiunta.
+
+Workflow arbitrale completato fino al Match Report.
+
+Nessuna funzionalità appartenente alle Wave 10, 11 o 12 è stata anticipata.
+
+Review approvata.
+
+### Annotazioni tecniche
+
+- validazioni estratte nel modulo condiviso referee-report-validation
+- comportamento Mobile coerente con la Source of Truth Web
+- adattamento UI Mobile (chip/pulsanti) senza modifiche funzionali
+- TypeScript verificato
+- test aggiunti
+- lint non disponibile nel progetto
+- test Jest non eseguibili nell'ambiente per limitazioni del registry
