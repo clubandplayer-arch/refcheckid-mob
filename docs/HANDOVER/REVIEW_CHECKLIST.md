@@ -370,3 +370,49 @@
 - [x] Step Riconoscimento e Referto mantenuti come placeholder per rispettare il perimetro della roadmap.
 - [x] Nessuna modifica alla Source of Truth.
 - [x] Nessun documento aggiuntivo creato.
+
+## Wave 8 – Recognition Workflow
+
+### Review Status
+
+- [x] Approved
+
+### File Web analizzati
+
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/app/referee/match/page.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/features/referee/referee-match-workflow.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/referee-api-client.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/referee-types.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/submitted-match-sheet.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/manager-photo-store.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/pilot-data.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/api-client.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/components/ui/button.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/components/ui/card.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/components/ui/state.tsx`
+
+### File Mobile approvati
+
+- [x] `src/features/referee/referee-match-workflow.tsx`
+- [x] `src/lib/theme.ts`
+
+### Checklist Feature Parity
+
+- [x] Comportamento coerente con la Source of Truth Web.
+- [x] Fetch dei soggetti di riconoscimento.
+- [x] Visualizzazione foto o placeholder.
+- [x] Visualizzazione dati documento.
+- [x] Decisioni Approved / Rejected.
+- [x] Gestione Pending.
+- [x] Completamento del riconoscimento.
+- [x] Invalidazione query dopo completamento.
+- [x] Blocco degli step precedenti dopo la chiusura.
+- [x] Placeholder Referto mantenuto senza implementare Wave 9.
+- [x] Nessuna regressione rilevata.
+
+### Esito review
+
+- [x] Feature Parity verificata.
+- [x] Wave 8 approvata.
+- [x] Nessuna funzionalità appartenente alla Wave 9 implementata.
+- [x] Workflow di riconoscimento conforme alla Source of Truth.
