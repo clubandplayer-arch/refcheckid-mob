@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "paths": { "@/*": ["src/*"] },
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["app", "src", "__tests__", "jest.setup.ts"]
+}

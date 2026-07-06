@@ -113,7 +113,7 @@ Dipendenze funzionali:
 | Roster players/staff, ricerca, selezione, reorder | Wave 5 |
 | Match sheet business validation | Wave 5 |
 | Manager photo upload/crop/store/approval request | Wave 6 |
-| Match sheet submit/reset/read-only lifecycle | Wave 6 |
+| Match sheet submit/reset/read-only lifecycle, inclusa persistenza snapshot locale per workflow arbitrale | Wave 6 |
 | Referee dashboard | Wave 7 |
 | Sheet verification, lock sheets, start recognition | Wave 7 |
 | Recognition subject loading and decisions | Wave 8 |
@@ -122,7 +122,7 @@ Dipendenze funzionali:
 | Federation dashboard KPIs | Wave 10 |
 | Federation match calendar and filters | Wave 10 |
 | Federation reports detail | Wave 11 |
-| Federation photo approval/rejection | Wave 11 |
+| Federation photo approval/rejection con invalidation photos/players/staff | Wave 11 |
 | Federation history/audit | Wave 11 |
 | Full regression/e2e/hardening/accessibility/performance | Wave 12 |
 
@@ -1045,7 +1045,7 @@ Wave 5.
   - se esiste foto corrente, richiesta pending per Federazione;
   - fino all'approvazione resta foto attuale.
 - Toast success/error foto.
-- Snapshot distinta inviata:
+- Snapshot distinta inviata, persistito localmente per il successivo workflow arbitrale:
   - players convocati;
   - staff convocato;
   - team.
@@ -1889,6 +1889,7 @@ Wave 10 e Wave 9 per referti completi; Wave 6 per richieste foto pending.
 - Azione approva pending locale.
 - Azione rifiuta pending locale.
 - Decisione aggiorna manager photo approval store.
+- Approvazione/rifiuto invalida anche players e staff, oltre a photos, in coerenza con la Source of Truth.
 - Approvazione applica override foto.
 - Rifiuto mantiene foto corrente.
 - Toast decisione.
@@ -2031,6 +2032,7 @@ Wave 10 e Wave 9 per referti completi; Wave 6 per richieste foto pending.
 - [ ] Rifiuta foto pending.
 - [ ] Override applicato su approvazione.
 - [ ] Foto corrente mantenuta su rifiuto.
+- [ ] Invalidation players/staff/photos dopo decisione foto.
 - [ ] Toast decisione foto.
 - [ ] Empty nessuna foto.
 - [ ] Fetch history.
