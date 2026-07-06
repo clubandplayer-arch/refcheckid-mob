@@ -1,0 +1,6 @@
+import { getApiBaseUrl } from "@/api/config";
+import { AppSession, isValidSession } from "./types";
+async function parseSession(response: Response): Promise<AppSession> { const data = await response.json(); if (!response.ok) throw new Error(data?.message || `API request failed with status ${response.status}`); if (!isValidSession(data)) throw new Error("Invalid session received from API"); return data; }
+export async function loginWithPassword(email: string, password: string): Promise<AppSession> { return parseSession(await fetch(`${getApiBaseUrl()}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) })); }
+export async function refreshSession(refreshToken: string): Promise<AppSession> { return parseSession(await fetch(`${getApiBaseUrl()}/auth/refresh`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refreshToken }) })); }
+export async function logoutSession(refreshToken: string): Promise<void> { const response = await fetch(`${getApiBaseUrl()}/auth/logout`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refreshToken }) }); if (!response.ok) throw new Error(`API request failed with status ${response.status}`); }

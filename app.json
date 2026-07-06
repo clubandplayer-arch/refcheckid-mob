@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "RefCheckID",
+    "slug": "refcheckid-mob",
+    "scheme": "refcheckid",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.refcheckid.mobile" },
+    "android": { "package": "com.refcheckid.mobile", "adaptiveIcon": { "backgroundColor": "#0f172a" } },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "extra": { "apiBaseUrl": "http://localhost:3001" }
+  }
+}
