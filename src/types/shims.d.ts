@@ -34,6 +34,7 @@ declare module "react-native" {
   export const View: (props: Record<string, unknown>) => unknown;
   export const Text: (props: Record<string, unknown>) => unknown;
   export const TextInput: (props: Record<string, unknown>) => unknown;
+  export const Image: (props: Record<string, unknown>) => unknown;
   export const Pressable: (props: Record<string, unknown>) => unknown;
   export const StyleSheet: { create<T extends Record<string, unknown>>(styles: T): T };
 }
