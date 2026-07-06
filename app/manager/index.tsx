@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { AuthGate } from "@/components/auth/auth-gate";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ function ManagerDashboard() {
           <Text style={styles.kicker}>Area Dirigente</Text>
           <Text style={styles.title}>Dashboard</Text>
         </View>
-        <Button disabled>Apri distinta</Button>
+        <Button onPress={() => router.push("/manager/match-sheet")}>Apri distinta</Button>
       </View>
 
       <View style={styles.cards}>
