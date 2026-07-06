@@ -1,4 +1,4 @@
-# Wave 1 — Web Source Feature-Parity Report
+# Wave 1 — Direct Web Source Feature-Parity Report
 
 ## Requested Source of Truth
 
@@ -8,64 +8,99 @@ The requested Source of Truth for this pass is the local Web project at:
 web-reference/refcheckid/refcheckid-web
 ```
 
-## Source availability check
+The mobile handover package is not used as the Source of Truth for this report.
 
-I attempted to inspect the local Web Source of Truth with:
+## Direct workspace verification
+
+I attempted to inspect the requested local Web Source of Truth with:
 
 ```sh
 find web-reference/refcheckid/refcheckid-web -maxdepth 3 -type f
 ```
 
-Result: the path does not exist in the current workspace.
+Actual result in this execution environment:
 
-I also checked the submodule state and attempted initialization:
+```text
+find: ‘web-reference/refcheckid/refcheckid-web’: No such file or directory
+```
+
+I also checked whether the Source of Truth existed elsewhere in the workspace:
+
+```sh
+find /workspace -path '*refcheckid-web*' -type d -print
+```
+
+Actual result: no matching directory was found.
+
+Finally, I checked the submodule state and attempted initialization:
 
 ```sh
 git submodule status
 git submodule update --init --recursive
 ```
 
-Result: the submodule is not checked out and cannot be cloned in this environment because the remote access fails with `CONNECT tunnel failed, response 403`.
+Actual result: the submodule is not checked out and cannot be cloned in this environment because the remote access fails with `CONNECT tunnel failed, response 403`.
 
 ## Constraint
 
-Because the Web Source of Truth is not present locally and cannot be fetched by this environment, I cannot truthfully mark the Wave 1 mobile implementation as fully verified against direct Web source code.
+Because `web-reference/refcheckid/refcheckid-web` is not present in this execution environment and cannot be fetched by the available network path, I cannot truthfully complete the requested direct code comparison against the Web Source of Truth.
 
-No Web files were modified.
+No Web Source-of-Truth files were modified.
+
+No functional mobile changes were made in this pass, because applying fixes without the direct Web source would risk changing the client based on assumptions rather than verified parity evidence.
+
+## Required Web files for the next pass
+
+Once the Web project is present locally, the comparison must inspect at least these Web areas/files:
+
+| Wave 1 area | Web files to inspect once available |
+|---|---|
+| Bootstrap | `src/app/layout.tsx`, provider entry points under `src/app` / `src/components` |
+| Navigation | App Router pages under `src/app`, role route pages |
+| Theme | global styles/theme files and shared UI components |
+| Query Client | Web providers mounting `QueryClientProvider` |
+| Session Provider | Web session context/provider files |
+| Auth Provider | Web auth context/provider files, if separate from session provider |
+| API Client | `src/lib/api-client.ts` |
+| Login | `src/app/page.tsx` and login form component(s) |
+| Refresh Token | `src/lib/auth-client.ts`, `src/lib/api-client.ts` |
+| Logout | auth client/logout handling and `AuthGate` logout action |
+| Routing | role redirect mapping and App Router destinations |
+| AuthGuard | Web `AuthGate` implementation |
+| Error Boundary | shared `ErrorBoundary` component |
+| Toast | shared `ToastProvider` / toast hook implementation |
+| Loading State | skeleton/loading components and protected-route loading states |
+| Empty State | shared `EmptyState` component and usage |
 
 ## Feature parity matrix
 
-The statuses below are intentionally conservative: each item is marked as a gap in **verification**, not necessarily a confirmed implementation gap, because direct Web comparison is blocked.
+The statuses below are conservative and represent a **direct verification gap**. They are not confirmed implementation defects in the mobile client.
 
 | Wave 1 area | Status | Reason |
 |---|---:|---|
-| Bootstrap | ✗ Gap funzionale | Direct comparison with Web bootstrap files is blocked because `web-reference/refcheckid/refcheckid-web` is absent. |
-| Navigation | ✗ Gap funzionale | Direct comparison with Web routing/navigation source is blocked. |
-| Query client | ✗ Gap funzionale | Direct comparison with Web provider/query configuration is blocked. |
-| Auth provider | ✗ Gap funzionale | Direct comparison with Web auth provider/source is blocked. |
-| Session provider | ✗ Gap funzionale | Direct comparison with Web session provider/source is blocked. |
-| API client | ✗ Gap funzionale | Direct comparison with Web `api-client.ts` is blocked, including exact `401`/refresh behavior. |
-| Refresh token | ✗ Gap funzionale | Direct comparison with Web refresh flow is blocked. |
-| Login | ✗ Gap funzionale | Direct comparison with Web login page/form behavior is blocked. |
-| Logout | ✗ Gap funzionale | Direct comparison with Web logout behavior is blocked. |
-| Auth guard | ✗ Gap funzionale | Direct comparison with Web `AuthGate` behavior is blocked. |
-| Error boundary | ✗ Gap funzionale | Direct comparison with Web error boundary behavior is blocked. |
-| Toast | ✗ Gap funzionale | Direct comparison with Web toast behavior is blocked. |
-| Loading | ✗ Gap funzionale | Direct comparison with Web loading/skeleton behavior is blocked. |
-| Empty state | ✗ Gap funzionale | Direct comparison with Web empty state behavior is blocked. |
+| Bootstrap | ✗ Gap funzionale | Direct comparison with Web source is blocked because the requested path is absent. |
+| Navigation | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| Theme | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| Query Client | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| Session Provider | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| Auth Provider | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| API Client | ✗ Gap funzionale | Direct comparison with Web `api-client.ts` is blocked, including exact `401`/refresh behavior. |
+| Login | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| Refresh Token | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| Logout | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| Routing | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| AuthGuard | ✗ Gap funzionale | Direct comparison with Web `AuthGate` source is blocked. |
+| Error Boundary | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| Toast | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| Loading State | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
+| Empty State | ✗ Gap funzionale | Direct comparison with Web source is blocked. |
 
 ## Feature parity percentage
 
-**0% verified against the direct Web Source of Truth.**
+**0% verified against direct Web Source-of-Truth code.**
 
-This is not a statement that the mobile implementation is entirely wrong; it is a statement that none of the requested Wave 1 areas can be certified against the direct Web source while the required local project path is missing.
+This percentage reflects verification status only. It does not assert that every mobile implementation is wrong; it asserts that none of the requested Wave 1 items can be certified as `✓ Identico` or `⚠ Differenze minori` until the Web source files are actually readable in this workspace.
 
-## Required next step
+## Final status
 
-Provide or checkout the Web Source of Truth at:
-
-```text
-web-reference/refcheckid/refcheckid-web
-```
-
-Once that path exists locally, the Wave 1 comparison must be re-run against the actual Web files. Only then can individual items be marked as `✓ Identico`, `⚠ Differenze minori`, or `✗ Gap funzionale` based on source-level evidence.
+Wave 1 cannot be declared completed in this pass because the required direct comparison with `web-reference/refcheckid/refcheckid-web` could not be executed.
