@@ -39,10 +39,45 @@ declare module "react-native" {
 }
 
 declare module "@tanstack/react-query" {
+  export type QueryKey = readonly unknown[];
+  export type QueryFunction<TData, TQueryKey extends QueryKey = QueryKey> = (context: { queryKey: TQueryKey }) => Promise<TData> | TData;
+  export interface UseQueryOptions<TData, TError, TSelected = TData, TQueryKey extends QueryKey = QueryKey> {
+    queryKey?: TQueryKey;
+    queryFn?: QueryFunction<TData, TQueryKey>;
+    retry?: number | boolean;
+    enabled?: boolean;
+    select?: (data: TData) => TSelected;
+    staleTime?: number;
+  }
+  export interface UseQueryResult<TData, TError> {
+    data: TData | undefined;
+    error: TError | null;
+    isError: boolean;
+    isLoading: boolean;
+    isFetching: boolean;
+    refetch: () => Promise<unknown>;
+  }
+  export interface UseMutationOptions<TData, TError, TVariables> {
+    retry?: number | boolean;
+    onSuccess?: (data: TData, variables: TVariables) => void;
+    onError?: (error: TError, variables: TVariables) => void;
+  }
+  export interface UseMutationResult<TData, TError, TVariables> {
+    data: TData | undefined;
+    error: TError | null;
+    isError: boolean;
+    isPending: boolean;
+    mutate: (variables: TVariables) => void;
+    mutateAsync: (variables: TVariables) => Promise<TData>;
+  }
   export class QueryClient {
     constructor(config?: unknown);
+    invalidateQueries(filters?: { queryKey?: QueryKey }): Promise<void>;
   }
   export function QueryClientProvider(props: { client: QueryClient; children?: React.ReactNode }): unknown;
+  export function useQuery<TData, TError = Error, TSelected = TData, TQueryKey extends QueryKey = QueryKey>(options: UseQueryOptions<TData, TError, TSelected, TQueryKey>): UseQueryResult<TSelected, TError>;
+  export function useMutation<TData, TError = Error, TVariables = void>(options: UseMutationOptions<TData, TError, TVariables> & { mutationFn: (variables: TVariables) => Promise<TData> }): UseMutationResult<TData, TError, TVariables>;
+  export function useQueryClient(): QueryClient;
 }
 
 declare module "expo-router" {
