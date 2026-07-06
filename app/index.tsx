@@ -1,0 +1,8 @@
+import React, { useEffect, useState } from "react";
+import { KeyboardAvoidingView, Platform, Text, View } from "react-native";
+import { router } from "expo-router";
+import { useAuth } from "@/auth/auth-context";
+import { useSession } from "@/auth/session-context";
+import { roleRedirects } from "@/auth/types";
+import { Button, Card, Input, LoadingState, styles } from "@/components/Primitives";
+export default function LoginScreen() { const { session, isReady } = useSession(); const { login } = useAuth(); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState<string | null>(null); useEffect(() => { if (isReady && session) router.replace(roleRedirects[session.user.role]); }, [isReady, session]); if (!isReady || session) return <LoadingState label="Preparazione sessione…" />; async function submit() { setError(null); setSubmitting(true); try { await login(email, password); } catch (e) { setError(e instanceof Error ? e.message : "Login non riuscito"); } finally { setSubmitting(false); } } return <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.center}><Card><Text style={styles.title}>RefCheckID</Text><Text style={styles.muted}>Accedi con le credenziali del portale.</Text><Input placeholder="Email" value={email} onChangeText={setEmail} keyboardType="email-address" /><Input placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />{error ? <Text style={{ color: "#dc2626" }}>{error}</Text> : null}<Button title="Accedi" loading={submitting} disabled={!email || !password} onPress={submit} /></Card></KeyboardAvoidingView>; }
