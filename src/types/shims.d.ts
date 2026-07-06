@@ -47,6 +47,8 @@ declare module "@tanstack/react-query" {
 
 declare module "expo-router" {
   export function Stack(props: Record<string, unknown>): unknown;
+  export function Redirect(props: Record<string, unknown>): unknown;
+  export const router: { push: (href: string) => void; replace: (href: string) => void };
 }
 
 declare module "@testing-library/react-native" {

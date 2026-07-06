@@ -4,11 +4,11 @@
 
 - Binario: **B — Mobile Feature Parity**
 - Source of Truth: `source-of-truth/refcheckid`
-- Wave completate/approvate: **2/13**
+- Wave completate/approvate: **3/13**
 - Wave implementate e in review: **0/13**
-- Percentuale di completamento approvato: **15%**
-- Percentuale di implementazione consegnata: **15%**
-- Stato corrente: **Wave 1 Approved / Merged**
+- Percentuale di completamento approvato: **23%**
+- Percentuale di implementazione consegnata: **23%**
+- Stato corrente: **Wave 2 Completed / Reviewed / Approved**
 
 ## Legenda stati
 
@@ -25,7 +25,7 @@
 |---|---|---:|---:|---:|---:|
 | Wave 0 | Governance, Source of Truth e matrice di copertura | ✅ Approved | 100% | — | 100% |
 | Wave 1 | Fondazioni applicative, configurazione e design system minimo | ✅ Approved | 100% | 🚀 Merged | 100% |
-| Wave 2 | Sessione, autenticazione, autorizzazione e routing protetto | ⚪ Not Started | 0% | — | 0% |
+| Wave 2 | Sessione, autenticazione, autorizzazione e routing protetto | ✅ Completed / Reviewed / Approved | 100% | — | 100% |
 | Wave 3 | API client, cache, error/loading/empty framework e contratti dati | ⚪ Not Started | 0% | — | 0% |
 | Wave 4 | Dashboard Manager e contesto squadra | ⚪ Not Started | 0% | — | 0% |
 | Wave 5 | Distinta Manager: roster, selezione, ruoli e validazioni core | ⚪ Not Started | 0% | — | 0% |
