@@ -475,3 +475,57 @@ Review approvata.
 - test aggiunti
 - lint non disponibile nel progetto
 - test Jest non eseguibili nell'ambiente per limitazioni del registry
+
+## Wave 10 – Federation Dashboard
+
+### Stato Review
+
+Approved
+
+### File Web analizzati
+
+- source-of-truth/refcheckid/refcheckid-web/src/features/federation/federation-workflow.tsx
+
+### File Mobile approvati
+
+- app/federation/index.tsx
+
+### Checklist Feature Parity
+
+- [x] accesso protetto ruolo Federation
+- [x] dashboard federale
+- [x] KPI operativi
+- [x] notifiche operative
+- [x] calendario gare
+- [x] filtro per giornata
+- [x] filtro per stato referto
+- [x] combinazione filtri (AND)
+- [x] elenco gare
+- [x] badge stato gara
+- [x] badge stato referto
+- [x] loading state
+- [x] error state
+- [x] empty state
+- [x] placeholder Referti
+- [x] placeholder Foto
+- [x] placeholder Storico
+
+### Esito review
+
+Feature Parity raggiunta.
+
+Dashboard Federazione e Calendario implementati coerentemente con la Source of Truth Web.
+
+Le sezioni Referti, Foto e Storico sono mantenute come placeholder senza anticipare funzionalità appartenenti alle Wave 11 e 12.
+
+Review approvata.
+
+### Annotazioni tecniche
+
+- adattamento UI Mobile mediante chip di navigazione in sostituzione della sidebar Web
+- architettura Mobile mantenuta
+- utilizzo dei servizi federation-api-client esistenti
+- TypeScript verificato
+- lint non disponibile nel progetto
+- test Jest non eseguibili nell'ambiente per limitazioni del registry
+
