@@ -4,11 +4,11 @@
 
 - Binario: **B — Mobile Feature Parity**
 - Source of Truth: `source-of-truth/refcheckid`
-- Wave completate/approvate: **6/13**
+- Wave completate/approvate: **7/13**
 - Wave implementate e in review: **0/13**
-- Percentuale di completamento approvato: **46%**
-- Percentuale di implementazione consegnata: **46%**
-- Stato corrente: **Wave 5 Completed / Reviewed / Approved**
+- Percentuale di completamento approvato: **54%**
+- Percentuale di implementazione consegnata: **54%**
+- Stato corrente: **Wave 6 – Completed / Reviewed / Approved**
 
 ## Legenda stati
 
@@ -29,7 +29,7 @@
 | Wave 3 | API client, cache, error/loading/empty framework e contratti dati | ✅ Completed / Reviewed / Approved | 100% | — | 100% |
 | Wave 4 | Dashboard Manager e contesto squadra | ✅ Completed / Reviewed / Approved | 100% | — | 100% |
 | Wave 5 | Distinta Manager: roster, selezione, ruoli e validazioni core | ✅ Completed / Reviewed / Approved | 100% | — | 100% |
-| Wave 6 | Distinta Manager: upload foto, richieste approvazione e submit lifecycle | ⚪ Not Started | 0% | — | 0% |
+| Wave 6 | Distinta Manager: upload foto, richieste approvazione e submit lifecycle | ✅ Completed | Approved | — | 100% |
 | Wave 7 | Dashboard Arbitro e verifica distinte | ⚪ Not Started | 0% | — | 0% |
 | Wave 8 | Riconoscimento arbitrale completo | ⚪ Not Started | 0% | — | 0% |
 | Wave 9 | Referto arbitrale completo | ⚪ Not Started | 0% | — | 0% |

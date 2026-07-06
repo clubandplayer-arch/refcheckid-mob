@@ -271,3 +271,52 @@
 - [x] Validazioni core allineate alla Source of Truth Web e ai messaggi business principali.
 - [x] Nessuna funzionalità della Wave 6 implementata: upload foto, crop, richieste approvazione e submit lifecycle restano esclusi.
 - [x] Documentazione aggiornata dopo approvazione.
+
+## Wave 6 – Referee Workflow
+
+### Stato review
+
+- [x] Completed / Reviewed / Approved
+
+### File Web analizzati
+
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/app/manager/match-sheet/page.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/features/manager/match-sheet-workflow.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/manager-photo-store.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/submitted-match-sheet.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/api-client.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/match-sheet-validation.ts`
+
+### File Mobile modificati
+
+- [x] `src/features/manager/match-sheet-workflow.tsx`
+- [x] `src/types/shims.d.ts`
+
+### Checklist Feature Parity
+
+- [x] Workflow Referee replicato
+- [x] Upload foto Player
+- [x] Upload foto Staff
+- [x] Preview immagini
+- [x] Validazione MIME
+- [x] Validazione dimensione file (5 MB)
+- [x] Conferma preview
+- [x] Crop mobile adattato
+- [x] Snapshot locale distinta
+- [x] Submit distinta
+- [x] Reset Smoke
+- [x] Toast success/error
+- [x] Stato read-only dopo submit
+- [x] Nessuna funzionalità di Wave successive introdotta
+
+### Esito review
+
+- [x] Approved
+
+### Annotazioni tecniche
+
+- [x] Crop adattato all'architettura React Native senza utilizzo di Canvas.
+- [x] Gestione upload conforme all'architettura Mobile mediante URI/base64.
+- [x] Feature Parity mantenuta con la Source of Truth Web.
+- [x] Nessuna modifica architetturale fuori dallo scope della Wave.
+- [x] Nessuna regressione rilevata durante la review.
