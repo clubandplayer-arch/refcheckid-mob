@@ -1,6 +1,6 @@
 # RefCheckID — Review Checklist
 
-> Wave 1, Wave 2 e Wave 3 approvate dopo review tecnica. Tutti i punti verificati risultano completati.
+> Wave 1, Wave 2, Wave 3 e Wave 4 approvate dopo review tecnica. Tutti i punti verificati risultano completati.
 
 ## Wave 1 — Fondazioni applicative, configurazione e design system minimo
 
@@ -146,3 +146,51 @@
 - [x] Adapter storage Mobile con fallback in memoria considerato differenza architetturale React Native, non differenza funzionale.
 - [x] Helper React Query Mobile approvati per query, mutation e invalidation coerenti con la semantica Web.
 - [x] Nessuna UI o workflow di Wave successive anticipata.
+
+## Wave 4 — Dashboard Manager e contesto squadra
+
+### Stato review
+
+- [x] Wave 4 completata.
+- [x] Wave 4 verificata.
+- [x] Wave 4 approvata.
+- [x] Feature Parity validata per Dashboard Manager e contesto squadra rispetto alla Source of Truth Web.
+
+### File Web verificati
+
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/app/manager/page.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/api-client.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/lib/manager-team.ts`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/components/auth/auth-gate.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/components/ui/card.tsx`
+- [x] `source-of-truth/refcheckid/refcheckid-web/src/components/ui/state.tsx`
+
+### File Mobile verificati e approvati
+
+- [x] `app/manager/index.tsx`
+- [x] `__tests__/manager-dashboard-source.test.ts`
+
+### Checklist Feature Parity Wave 4
+
+- [x] Config team manager equivalente.
+- [x] ClubId manager usato per API.
+- [x] Fetch matches club.
+- [x] Fetch match sheets club.
+- [x] Ordinamento prossima gara.
+- [x] Venue fallback “Da definire”.
+- [x] Stato distinta formattato.
+- [x] Notifiche stato distinta.
+- [x] Card prossima gara.
+- [x] Card stato distinta.
+- [x] Card notifiche.
+- [x] Empty nessuna gara.
+- [x] Error retry.
+- [x] CTA Apri distinta.
+
+### Annotazioni tecniche approvate
+
+- [x] Dashboard Manager implementata con `AuthGate`, `useApiQuery`, `fetchManagerDashboard` e `queryKeys.manager` mantenendo l'architettura Mobile esistente.
+- [x] Stati loading, error con retry, empty e data-driven approvati come equivalenti alla Source of Truth Web.
+- [x] CTA `Apri distinta` mantenuta nel layout ma resa temporaneamente non interattiva perché la route `/manager/match-sheet` appartiene alle Wave successive.
+- [x] Test sorgente approvati per clubId manager, ordinamento `scheduledAt`, fallback venue, stato distinta e notifiche.
+- [x] Review finale Wave 4 completata e approvata dopo verifica tecnica.
