@@ -576,3 +576,77 @@ Approved
 - Architettura coerente con il resto dell'applicazione.
 - Utilizzo corretto di React Query, useApiQuery e invalidazioni.
 - Osservate esclusivamente note minori non bloccanti (timestamp audit sintetico, local state ridondante, colori hardcoded e verifica query key), non tali da impedire l'approvazione della Wave.
+
+# Wave 12 – Hardening finale, test end-to-end e certificazione 100% Feature Parity
+
+### Stato review
+
+- [x] Completed
+- [x] Reviewed
+- [x] Approved
+
+### File Web analizzati
+
+- `source-of-truth/refcheckid/refcheckid-web/src/app/page.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/app/manager/page.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/app/manager/match-sheet/page.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/app/referee/page.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/app/referee/match/page.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/app/federation/page.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/components/auth/auth-gate.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/api-client.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/match-sheet-validation.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/referee-report-validation.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/features/manager/match-sheet-workflow.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/features/referee/referee-match-workflow.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/features/federation/federation-workflow.tsx`
+
+### File Mobile modificati
+
+- `__tests__/wave12-feature-parity.test.ts`
+
+### Checklist Feature Parity
+
+- [x] autenticazione
+- [x] routing
+- [x] provider
+- [x] API client
+- [x] React Query
+- [x] cache
+- [x] invalidazioni
+- [x] dashboard Manager
+- [x] workflow Distinta
+- [x] upload foto
+- [x] workflow Arbitro
+- [x] riconoscimento
+- [x] referto
+- [x] dashboard Federazione
+- [x] calendario
+- [x] referti
+- [x] foto
+- [x] storico
+- [x] audit
+- [x] loading
+- [x] error
+- [x] empty state
+- [x] autorizzazioni
+- [x] ruoli
+- [x] payload
+- [x] tipi condivisi
+- [x] validazioni
+- [x] nessun gap funzionale residuo
+
+### Esito review
+
+- Nessun gap funzionale residuo individuato.
+- Nessuna regressione rilevata.
+- Wave 12 approvata.
+- Feature Parity completata.
+
+### Annotazioni tecniche
+
+- La Wave 12 non introduce nuove funzionalità.
+- È stata eseguita esclusivamente attività di hardening finale e copertura regressiva.
+- È stata aggiunta la suite di test finale per la certificazione della Feature Parity.
+- L'implementazione Mobile risulta allineata alla Source of Truth Web.
+- La Feature Parity è stata certificata al 100%.
