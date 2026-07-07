@@ -1,11 +1,15 @@
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { AuthGate } from "@/components/auth/auth-gate";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
-import { fetchFederationDashboard, fetchFederationMatches } from "@/lib/federation-api-client";
-import type { FederationMatchListItem, FederationReportStatus } from "@/lib/federation-types";
+import { useToast } from "@/components/ui/toast";
+import { fetchFederationDashboard, fetchFederationHistory, fetchFederationMatches, fetchFederationReports, fetchPhotoRequests } from "@/lib/federation-api-client";
+import { decideManagerPhotoApprovalRequest } from "@/lib/manager-photo-store";
+import type { FederationHistoryItem, FederationMatchListItem, FederationReport, FederationReportEvent, FederationReportStatus, PhotoRequest, PhotoRequestStatus } from "@/lib/federation-types";
 import { queryKeys, useApiQuery } from "@/lib/query";
+import { useQueryClient } from "@tanstack/react-query";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const sections = ["Cruscotto", "Calendario", "Referti", "Foto", "Storico"] as const;
@@ -35,7 +39,9 @@ export default function FederationPage() {
         </View>
         {section === 0 ? <FederationDashboardPanel /> : null}
         {section === 1 ? <MatchCalendarPanel /> : null}
-        {section > 1 ? <Card><Text style={styles.body}>{sections[section]} disponibile nelle Wave successive.</Text></Card> : null}
+        {section === 2 ? <ReportsPanel /> : null}
+        {section === 3 ? <PhotoRequestsPanel /> : null}
+        {section === 4 ? <HistoryPanel /> : null}
       </View>
     </AuthGate>
   );
@@ -112,30 +118,143 @@ function MatchList({ matches }: Readonly<{ matches: readonly FederationMatchList
   return <View style={styles.matchList}>{matches.map((match) => <View key={match.id} style={styles.matchRow}><Text style={styles.matchday}>G{match.matchday}</Text><Text style={styles.matchTitle}>{match.homeTeam} - {match.awayTeam}</Text><Text style={styles.body}>Arbitro: {match.refereeName}</Text><View style={styles.badgeRow}><StatusBadge status={match.matchStatus} /><StatusBadge status={match.reportStatus} /></View></View>)}</View>;
 }
 
+
+function ReportsPanel() {
+  const query = useApiQuery(queryKeys.matchReports, fetchFederationReports);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  if (query.isLoading) return <SkeletonBlock />;
+  if (query.isError) return <ErrorState message={query.error?.message ?? "Errore sconosciuto"} onRetry={() => void query.refetch()} />;
+  const reports = query.data ?? [];
+  const selectedReport = reports.find((report) => report.id === selectedReportId) ?? reports[0] ?? null;
+  return <View style={styles.cardGap}><Card style={styles.cardGapSmall}><Text style={styles.heading}>Referti ricevuti</Text><ReportList reports={reports} selectedReportId={selectedReportId} onSelect={setSelectedReportId} /></Card>{selectedReport ? <ReportDetail report={selectedReport} /> : <EmptyState message="Seleziona un referto." />}</View>;
+}
+
+function ReportList({ reports, selectedReportId, onSelect }: Readonly<{ reports: readonly FederationReport[]; selectedReportId: string | null; onSelect: (id: string) => void }>) {
+  if (reports.length === 0) return <EmptyState message="Nessun referto ricevuto." />;
+  return <View style={styles.cardGapSmall}>{reports.map((report) => <Pressable accessibilityRole="button" key={report.id} onPress={() => onSelect(report.id)} style={[styles.listButton, selectedReportId === report.id ? styles.listButtonActive : null]}><Text style={styles.matchTitle}>{report.homeTeam} - {report.awayTeam}</Text><Text style={styles.body}>{report.refereeName} · {formatSubmittedAt(report.submittedAt)}</Text></Pressable>)}</View>;
+}
+
+function ReportDetail({ report }: Readonly<{ report: FederationReport }>) {
+  return <Card style={styles.cardGap}><View style={styles.detailHeader}><View style={styles.cardGapSmall}><Text style={styles.kicker}>Dettaglio referto in sola lettura</Text><Text style={styles.heading}>{report.homeTeam} - {report.awayTeam}</Text><Text style={styles.body}>Arbitro: {report.refereeName}</Text><Text style={styles.body}>Invio: {formatSubmittedAt(report.submittedAt)}</Text></View><Text style={styles.scoreBadge}>{report.result.homeGoals}-{report.result.awayGoals}</Text></View><ReportEvents title="Gol" events={report.goals} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /><ReportEvents title="Ammonizioni" events={report.cautions} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /><ReportEvents title="Espulsioni" events={report.expulsions} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /><ReportEvents title="Sostituzioni" events={report.substitutions} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /><ReadOnlyNotes title="Note arbitro" value={report.refereeNotes} />{report.commissionerNotes ? <ReadOnlyNotes title="Note commissario" value={report.commissionerNotes} /> : null}</Card>;
+}
+
+function ReportEvents({ title, events, homeTeam, awayTeam }: Readonly<{ title: string; events: readonly FederationReportEvent[]; homeTeam: string; awayTeam: string }>) {
+  return <View style={styles.cardGapSmall}><Text style={styles.filterLabel}>{title}</Text>{events.length === 0 ? <Text style={styles.emptyInline}>Nessun evento.</Text> : null}{events.map((event) => <View key={event.id} style={styles.eventRow}><Text style={styles.matchday}>{event.minute}'</Text><Text style={styles.body}>{formatReportTeamName(event.teamName, homeTeam, awayTeam)}</Text><Text style={styles.body}>{event.playerName} · {event.detail}</Text></View>)}</View>;
+}
+
+function ReadOnlyNotes({ title, value }: Readonly<{ title: string; value: string }>) {
+  return <View style={styles.cardGapSmall}><Text style={styles.filterLabel}>{title}</Text><Text style={styles.emptyInline}>{value}</Text></View>;
+}
+
+function PhotoRequestsPanel() {
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+  const query = useApiQuery(queryKeys.photos, fetchPhotoRequests);
+  const [localStatuses, setLocalStatuses] = useState<Record<string, PhotoRequestStatus>>({});
+  function transitionRequest(requestId: string, status: Exclude<PhotoRequestStatus, "pending">) {
+    decideManagerPhotoApprovalRequest(requestId, status);
+    setLocalStatuses((current) => ({ ...current, [requestId]: status }));
+    notify(status === "approved" ? "Nuova foto approvata e resa disponibile al Club" : "Nuova foto rifiutata: il Club mantiene la foto attuale", "success");
+    void queryClient.invalidateQueries({ queryKey: queryKeys.photos });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.players });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.staff });
+  }
+  if (query.isLoading) return <SkeletonBlock />;
+  if (query.isError) return <ErrorState message={query.error?.message ?? "Errore sconosciuto"} onRetry={() => void query.refetch()} />;
+  const requests = (query.data ?? []).map((request) => ({ ...request, status: localStatuses[request.id] ?? request.status }));
+  return <Card style={styles.cardGap}><View style={styles.cardGapSmall}><Text style={styles.heading}>Richieste foto</Text><Text style={styles.body}>Confronta foto attuale e nuova proposta prima della decisione.</Text></View>{requests.length === 0 ? <EmptyState message="Nessuna richiesta foto." /> : null}{requests.map((request) => <View key={request.id}><PhotoRequestCard request={request} transitionRequest={transitionRequest} /></View>)}</Card>;
+}
+
+function PhotoRequestCard({ request, transitionRequest }: Readonly<{ request: PhotoRequest; transitionRequest: (requestId: string, status: Exclude<PhotoRequestStatus, "pending">) => void }>) {
+  return <View style={styles.photoCard}><View style={styles.detailHeader}><View><Text style={styles.matchTitle}>{request.playerName}</Text><Text style={styles.body}>Tesserato</Text><Text style={styles.body}>{request.clubName}</Text></View><StatusBadge status={request.status} /></View><View style={styles.photoGrid}><PhotoBox label="Foto attuale" photoUrl={request.currentPhotoUrl} /><PhotoBox label="Nuova foto da approvare" photoUrl={request.proposedPhotoUrl} /></View>{request.status === "rejected" ? <Text style={styles.dangerNote}>Rifiuto comunicato al Club: resta valida la foto attuale e la Federazione può richiedere motivazione dell'upload e documenti afferenti l'identità del tesserato.</Text> : null}{request.status === "approved" ? <Text style={styles.successNote}>Foto approvata: la nuova immagine è subito disponibile al Club.</Text> : null}<View style={styles.buttonRow}><Button disabled={request.status !== "pending"} onPress={() => transitionRequest(request.id, "approved")}>Approva</Button><Button disabled={request.status !== "pending"} onPress={() => transitionRequest(request.id, "rejected")} variant="danger">Rifiuta</Button></View></View>;
+}
+
+function PhotoBox({ label, photoUrl }: Readonly<{ label: string; photoUrl: string | null }>) {
+  return <View style={styles.cardGapSmall}><Text style={styles.filterLabel}>{label}</Text><View style={styles.photoBox}>{photoUrl ? <Image source={{ uri: photoUrl }} style={styles.photoImage} /> : <Text style={styles.body}>Nessuna immagine</Text>}</View></View>;
+}
+
+function HistoryPanel() {
+  const historyQuery = useApiQuery(queryKeys.audit, fetchFederationHistory);
+  const reportsQuery = useApiQuery([...queryKeys.matchReports, "history-actions"], fetchFederationReports);
+  const [queryText, setQueryText] = useState("");
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [selectedAuditId, setSelectedAuditId] = useState<string | null>(null);
+  const filteredHistory = useMemo(() => (historyQuery.data ?? []).filter((item) => `${item.matchLabel} ${item.clubNames.join(" ")} ${item.refereeName}`.toLowerCase().includes(queryText.toLowerCase())), [historyQuery.data, queryText]);
+  const selectedAuditItem = filteredHistory.find((item) => item.id === selectedAuditId) ?? null;
+  const selectedReport = (reportsQuery.data ?? []).find((report) => report.id === selectedReportId) ?? null;
+  if (historyQuery.isLoading || reportsQuery.isLoading) return <SkeletonBlock />;
+  if (historyQuery.isError) return <ErrorState message={historyQuery.error?.message ?? "Errore sconosciuto"} onRetry={() => void historyQuery.refetch()} />;
+  if (reportsQuery.isError) return <ErrorState message={reportsQuery.error?.message ?? "Errore sconosciuto"} onRetry={() => void reportsQuery.refetch()} />;
+  return <Card style={styles.cardGap}><View style={styles.cardGapSmall}><Text style={styles.heading}>Storico</Text><Text style={styles.body}>Ricerca gara, società o arbitro e accedi a referto e audit sintetico.</Text></View><TextInput onChangeText={setQueryText} placeholder="Cerca gara, società o arbitro" style={styles.inputLike} value={queryText} />{filteredHistory.length === 0 ? <EmptyState message="Nessun elemento storico trovato." /> : null}{filteredHistory.map((item) => <View key={item.id}><HistoryCard item={item} onOpenReport={() => { setSelectedReportId(item.reportId); setSelectedAuditId(null); }} onOpenAudit={() => { setSelectedAuditId(item.id); setSelectedReportId(null); }} /></View>)}{selectedReport ? <ReportDetail report={selectedReport} /> : null}{selectedAuditItem ? <AuditSummaryPanel item={selectedAuditItem} /> : null}</Card>;
+}
+
+function HistoryCard({ item, onOpenAudit, onOpenReport }: Readonly<{ item: FederationHistoryItem; onOpenAudit: () => void; onOpenReport: () => void }>) {
+  return <View style={styles.photoCard}><View style={styles.cardGapSmall}><Text style={styles.matchTitle}>{item.matchLabel}</Text><Text style={styles.body}>Arbitro: {item.refereeName}</Text></View><View style={styles.buttonRow}><Button onPress={onOpenReport}>Apri referto</Button><Button onPress={onOpenAudit}>Audit sintetico</Button></View>{item.auditSummary.map((entry) => <Text key={entry} style={styles.body}>• {entry}</Text>)}</View>;
+}
+
+function AuditSummaryPanel({ item }: Readonly<{ item: FederationHistoryItem }>) {
+  const auditEntries = ["Distinta inviata dal dirigente", "Riconoscimento completato dall’arbitro", "Referto inviato dall’arbitro", "Referto ricevuto dalla federazione", ...item.auditSummary];
+  return <Card style={[styles.cardGap, styles.auditPanel]}><View><Text style={styles.kicker}>Audit sintetico</Text><Text style={styles.heading}>{item.matchLabel}</Text><Text style={styles.body}>Attore evento: {item.refereeName || "Arbitro Demo"}</Text></View>{auditEntries.map((entry, index) => <Text key={`${entry}-${index}`} style={styles.auditEntry}>{index + 1}. {entry}{"\n"}<Text style={styles.body}>Timestamp: {formatSubmittedAt(new Date().toISOString())}</Text></Text>)}</Card>;
+}
+
 function StatusBadge({ status }: Readonly<{ status: string }>) {
-  return <Text style={[styles.statusBadge, isPositiveStatus(status) ? styles.statusPositive : styles.statusNeutral]}>{formatStatusLabel(status)}</Text>;
+  return <Text style={[styles.statusBadge, getStatusStyle(status)]}>{formatStatusLabel(status)}</Text>;
+}
+
+
+function formatSubmittedAt(value: string) {
+  return value ? new Date(value).toLocaleString("it-IT") : "Invio registrato";
+}
+
+function formatReportTeamName(teamName: string, homeTeam: string, awayTeam: string): string {
+  if (teamName === "Casa") return homeTeam;
+  if (teamName === "Ospite") return awayTeam;
+  return teamName;
 }
 
 function formatStatusLabel(status: string) {
   return {
     all: "Tutti",
+    archived: "Archiviata",
+    approved: "Approvata",
     completed: "Completata",
     draft: "Bozza",
+    failed: "Errore",
     in_progress: "In corso",
     missing: "Mancante",
+    pending: "In attesa",
+    rejected: "Rifiutata",
     reviewed: "Revisionato",
     scheduled: "Programmata",
     submitted: "Inviato",
+    warning: "Attenzione",
   }[status] ?? status;
 }
 
-function isPositiveStatus(status: string) {
-  return ["submitted", "reviewed", "completed", "approved", "ok"].includes(status);
+function getStatusStyle(status: string) {
+  if (["submitted", "reviewed", "completed", "approved", "ok"].includes(status)) return styles.statusPositive;
+  if (["failed", "rejected"].includes(status)) return styles.statusDanger;
+  return styles.statusNeutral;
 }
 
 const styles = StyleSheet.create({
+  auditEntry: { backgroundColor: colors.white, borderRadius: radii.md, color: colors.foreground, fontSize: 14, lineHeight: 20, padding: spacing.md },
+  auditPanel: { backgroundColor: colors.muted },
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   body: { color: colors.mutedForeground, fontSize: 14, lineHeight: 20 },
+  buttonRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  dangerNote: { backgroundColor: "#fee2e2", borderRadius: radii.md, color: "#991b1b", fontSize: 12, lineHeight: 18, padding: spacing.sm },
+  detailHeader: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, justifyContent: "space-between" },
+  eventRow: { borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
+  inputLike: { borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, color: colors.foreground, padding: spacing.md },
+  listButton: { borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
+  listButtonActive: { backgroundColor: colors.muted, borderColor: colors.primary },
+  photoBox: { alignItems: "center", aspectRatio: 1, backgroundColor: colors.muted, borderRadius: radii.lg, justifyContent: "center", overflow: "hidden" },
+  photoCard: { borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, gap: spacing.md, padding: spacing.md },
+  photoGrid: { gap: spacing.md },
+  photoImage: { height: "100%", width: "100%" },
+  scoreBadge: { backgroundColor: colors.primary, borderRadius: radii.lg, color: colors.white, fontSize: 22, fontWeight: "900", paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  successNote: { backgroundColor: colors.successBackground, borderRadius: radii.md, color: colors.successText, fontSize: 12, lineHeight: 18, padding: spacing.sm },
   cardGap: { gap: spacing.lg },
   cardGapSmall: { gap: spacing.sm },
   choiceButton: { backgroundColor: colors.muted, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
@@ -164,6 +283,7 @@ const styles = StyleSheet.create({
   statLabel: { color: colors.mutedForeground, fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
   statValue: { color: colors.foreground, fontSize: 32, fontWeight: "800" },
   statusBadge: { borderRadius: 999, fontSize: 12, fontWeight: "800", paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  statusDanger: { backgroundColor: "#fee2e2", color: "#991b1b" },
   statusNeutral: { backgroundColor: colors.muted, color: colors.foreground },
   statusPositive: { backgroundColor: colors.successBackground, color: colors.successText },
   title: { color: colors.foreground, fontSize: 28, fontWeight: "700" },
