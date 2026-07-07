@@ -11,10 +11,10 @@
       "expo-router"
     ],
     "android": {
-      "package": "com.refcheckid.mobile"
+      "package": "com.refcheckid.app"
     },
     "ios": {
-      "bundleIdentifier": "com.refcheckid.mobile"
+      "bundleIdentifier": "com.refcheckid.app"
     }
   }
 }
