@@ -529,3 +529,50 @@ Review approvata.
 - lint non disponibile nel progetto
 - test Jest non eseguibili nell'ambiente per limitazioni del registry
 
+
+## Wave 11 – Federazione: referti, foto, storico e audit
+
+### Stato review
+
+Approved
+
+### File Web analizzati
+
+- `source-of-truth/refcheckid/refcheckid-web/src/features/federation/federation-workflow.tsx`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/federation-api-client.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/federation-types.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/manager-photo-store.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/submitted-report.ts`
+- `source-of-truth/refcheckid/refcheckid-web/src/lib/api-client.ts`
+
+### File Mobile modificati
+
+- `app/federation/index.tsx`
+
+### Feature verificate e approvate
+
+- [x] Dashboard e Calendario Wave 10 mantenuti invariati.
+- [x] Implementata la consultazione dei referti federali.
+- [x] Lista referti con selezione e dettaglio in sola lettura.
+- [x] Visualizzazione risultato, gol, ammonizioni, espulsioni, sostituzioni, note arbitro e note commissario.
+- [x] Implementata la gestione delle richieste foto.
+- [x] Visualizzazione foto attuale e foto proposta.
+- [x] Gestione approvazione e rifiuto richieste pending.
+- [x] Invalidazione coerente delle query photos, players e staff.
+- [x] Implementato lo storico federale.
+- [x] Ricerca per gara, società e arbitro.
+- [x] Apertura referto.
+- [x] Apertura audit sintetico.
+- [x] Gestione completa degli stati loading, error, empty e read-only.
+- [x] Feature Parity verificata con la Source of Truth Web.
+
+### Esito review
+
+Approved
+
+### Annotazioni tecniche
+
+- Nessuna regressione rilevata rispetto alla Wave 10.
+- Architettura coerente con il resto dell'applicazione.
+- Utilizzo corretto di React Query, useApiQuery e invalidazioni.
+- Osservate esclusivamente note minori non bloccanti (timestamp audit sintetico, local state ridondante, colori hardcoded e verifica query key), non tali da impedire l'approvazione della Wave.

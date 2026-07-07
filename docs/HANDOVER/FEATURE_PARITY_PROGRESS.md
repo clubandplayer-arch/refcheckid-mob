@@ -4,11 +4,12 @@
 
 - Binario: **B — Mobile Feature Parity**
 - Source of Truth: `source-of-truth/refcheckid`
-- Wave completate/approvate: **11/13**
+- Wave completate/approvate: **12/13**
 - Wave implementate e in review: **0/13**
-- Percentuale di completamento approvato: **85%**
-- Percentuale di implementazione consegnata: **85%**
-- Stato corrente: **Wave 10 – Completed / Reviewed / Approved**
+- Percentuale di completamento approvato: **92%**
+- Percentuale di implementazione consegnata: **92%**
+- Stato corrente: **Wave 11 – Completed / Reviewed / Approved**
+- Wave corrente successiva: **Wave 12 – Hardening finale, test end-to-end e certificazione 100% Feature Parity**
 
 ## Legenda stati
 
@@ -34,5 +35,5 @@
 | Wave 8 | Riconoscimento arbitrale completo | Completed | Approved | — | 100% |
 | Wave 9 | Referto arbitrale completo | Completed | Approved | — | 100% |
 | Wave 10 | Federazione: cruscotto e calendario | Completed | Approved | — | 100% |
-| Wave 11 | Federazione: referti, foto, storico e audit | ⚪ Not Started | 0% | — | 0% |
+| Wave 11 | Federazione: referti, foto, storico e audit | Completed | Approved | — | 100% |
 | Wave 12 | Hardening finale, test end-to-end e certificazione 100% Feature Parity | ⚪ Not Started | 0% | — | 0% |
