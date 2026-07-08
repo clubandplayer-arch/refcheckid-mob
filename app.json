@@ -15,6 +15,13 @@
     },
     "ios": {
       "bundleIdentifier": "com.refcheckid.app"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3a04122a-0713-4e33-bdab-15ffd668b0dd"
+      }
+    },
+    "owner": "clubandplayer.dev"
   }
 }
