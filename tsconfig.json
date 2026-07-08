@@ -7,9 +7,19 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "ignoreDeprecations": "5.0",
-    "paths": { "@/*": ["src/*"] },
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["app", "src", "__tests__", "jest.setup.ts"]
+  "include": [
+    "app",
+    "src",
+    "__tests__",
+    "jest.setup.ts"
+  ],
+  "extends": "expo/tsconfig.base"
 }
