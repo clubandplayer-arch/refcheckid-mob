@@ -49,6 +49,7 @@ export function validateReportDraft(
   recognitionSubjects: readonly RecognitionSubject[] = [],
 ): readonly string[] {
   return [
+    ...validateRecognitionCompletion(recognitionSubjects),
     ...validateGoalTotals(report),
     ...validateEventList("Gol", report.goals, true, recognitionSubjects),
     ...validateEventList("Ammonizioni", report.cautions, true, recognitionSubjects),
@@ -64,6 +65,14 @@ export function countGoalsByTeam(report: MatchReportDraft): { home: number; away
     away: report.goals.filter((event) => event.teamName === "Ospite").length,
     home: report.goals.filter((event) => event.teamName === "Casa").length,
   };
+}
+
+function validateRecognitionCompletion(
+  recognitionSubjects: readonly RecognitionSubject[],
+): readonly string[] {
+  return recognitionSubjects.some((subject) => subject.decision === "pending")
+    ? ["Completa il riconoscimento di tutti i tesserati prima del referto."]
+    : [];
 }
 
 function validateGoalTotals(report: MatchReportDraft): readonly string[] {

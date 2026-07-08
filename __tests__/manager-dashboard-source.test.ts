@@ -52,16 +52,14 @@ describe("Wave 4 manager dashboard source", () => {
 
     const dashboard = await fetchManagerDashboard();
 
-    expect(JSON.stringify(dashboard)).toBe(JSON.stringify({
-      matchSheetStatus: "submitted",
-      nextMatch: {
-        id: "next-match",
-        opponent: "Sporting Litorale",
-        scheduledAt: "2026-04-10T15:00:00.000Z",
-        venue: "Da definire",
-      },
-      notifications: ["Distinta inviata: attendi l’arbitro"],
+    expect(dashboard.matchSheetStatus).toBe("submitted");
+    expect(JSON.stringify(dashboard.nextMatch)).toBe(JSON.stringify({
+      id: "next-match",
+      opponent: "Sporting Litorale",
+      scheduledAt: "2026-04-10T15:00:00.000Z",
+      venue: "Da definire",
     }));
+    expect(JSON.stringify(dashboard.notifications)).toBe(JSON.stringify(["Distinta inviata: attendi l’arbitro"]));
   });
 
   it("defaults to draft with no notifications when the next match has no sheet", async () => {
