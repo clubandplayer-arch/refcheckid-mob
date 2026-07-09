@@ -42,10 +42,12 @@ export interface ApiReport {
 export interface ApiPhoto {
   id: string;
   playerId?: string;
+  player_id?: string | null;
   status?: string;
   staffMemberId?: string | null;
   staff_member_id?: string | null;
   storagePath?: string;
+  storage_path?: string;
 }
 
 export const queryKeys = {
@@ -151,10 +153,10 @@ function withPhotoMetadata<TSubject extends { id: string; photoUrl: string | nul
 function resolveSubjectPhotoUrl(photos: readonly ApiPhoto[], subjectId: string, kind: "player" | "staff", fallback: string | null): string | null {
   const metadataPhoto = photos.find((photo) => {
     if (photo.status === "archived" || photo.status === "rejected") return false;
-    const ownerId = kind === "player" ? photo.playerId : photo.staffMemberId ?? photo.staff_member_id;
+    const ownerId = kind === "player" ? photo.playerId ?? photo.player_id : photo.staffMemberId ?? photo.staff_member_id;
     return ownerId === subjectId;
   });
-  return resolveRenderablePhotoUrl(metadataPhoto?.storagePath ?? fallback);
+  return resolveRenderablePhotoUrl(metadataPhoto?.storagePath ?? metadataPhoto?.storage_path ?? fallback);
 }
 
 export function fetchMatches(query = ""): Promise<readonly ApiMatch[]> {

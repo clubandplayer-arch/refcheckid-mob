@@ -114,7 +114,7 @@ function MatchCalendarPanel() {
 }
 
 function FilterChip({ active, label, onPress }: Readonly<{ active: boolean; label: string; onPress: () => void }>) {
-  return <Pressable accessibilityRole="button" onPress={onPress} style={[styles.choiceButton, active ? styles.choiceButtonActive : null]}><Text style={[styles.choiceText, active ? styles.choiceTextActive : null]}>{label}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={[styles.choiceButton, active ? styles.choiceButtonActive : null]}><Text style={[styles.choiceText, active ? styles.choiceTextActive : null]}>{label}</Text></Pressable>;
 }
 
 function MatchList({ matches }: Readonly<{ matches: readonly FederationMatchListItem[] }>) {

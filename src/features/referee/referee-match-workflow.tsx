@@ -94,6 +94,7 @@ function RefereeWorkflowStepper({ currentStep, onChangeStep, recognitionClosed }
         return (
           <Pressable
             accessibilityRole="button"
+            accessibilityState={{ disabled: isRecognitionStepDisabled, selected: currentStep === index }}
             disabled={isRecognitionStepDisabled}
             key={label}
             onPress={() => {
@@ -383,6 +384,7 @@ function TeamSheetCard({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
       onPress={onSelect}
       style={[styles.sheetCard, isSelected ? styles.sheetCardSelected : null]}
     >

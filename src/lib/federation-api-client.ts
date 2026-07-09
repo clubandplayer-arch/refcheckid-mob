@@ -279,8 +279,8 @@ function toPhotoRequest(photo: ApiPhoto): PhotoRequest {
     id: photo.id,
     clubName: "Club",
     currentPhotoUrl: null,
-    playerName: photo.playerId ?? photo.id,
-    proposedPhotoUrl: photo.storagePath ?? null,
+    playerName: photo.playerId ?? photo.player_id ?? photo.id,
+    proposedPhotoUrl: photo.storagePath ?? photo.storage_path ?? null,
     requestedAt: "",
     status:
       photo.status === "approved"
