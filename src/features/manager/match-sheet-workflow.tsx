@@ -248,8 +248,46 @@ function PhotoCaptureControls({ currentPhotoUrl, onConfirm, onPhotoDraft, onPhot
   const [previewUrl, setPreviewUrl] = useState("");
   const [mimeType, setMimeType] = useState("image/jpeg");
   const [sizeText, setSizeText] = useState("0");
-  return <View style={styles.photoControls}><Text style={styles.name}>{currentPhotoUrl ? "Modifica foto" : "Aggiungi foto"}</Text><Input onChangeText={setPreviewUrl} placeholder={`URI/base64 foto ${subjectLabel}`} value={previewUrl} /><Input onChangeText={setMimeType} placeholder="MIME type" value={mimeType} /><Input keyboardType="number-pad" onChangeText={setSizeText} placeholder="Dimensione byte" value={sizeText} /><Button onPress={() => onPhotoDraft({ previewUrl, mimeType, sizeBytes: Number(sizeText) || 0 })}>Genera preview</Button>{photoDraft ? <View style={styles.previewBox}><Image accessibilityLabel={`Preview foto ${subjectLabel}`} source={{ uri: photoDraft.previewUrl }} style={[styles.previewImage, { transform: [{ translateX: photoDraft.offsetX }, { translateY: photoDraft.offsetY }, { scale: photoDraft.zoom }] }]} /><Text style={styles.body}>Crop: zoom {photoDraft.zoom.toFixed(1)} · X {photoDraft.offsetX} · Y {photoDraft.offsetY}</Text><View style={styles.buttonRow}><Button onPress={() => onPhotoTransform({ zoom: Math.max(0.5, photoDraft.zoom - 0.1) })}>Riduci</Button><Button onPress={() => onPhotoTransform({ zoom: Math.min(3, photoDraft.zoom + 0.1) })}>Zoom</Button><Button onPress={() => onPhotoTransform({ offsetX: photoDraft.offsetX - 4 })}>Sinistra</Button><Button onPress={() => onPhotoTransform({ offsetX: photoDraft.offsetX + 4 })}>Destra</Button><Button onPress={() => onPhotoTransform({ offsetY: photoDraft.offsetY - 4 })}>Su</Button><Button onPress={() => onPhotoTransform({ offsetY: photoDraft.offsetY + 4 })}>Giù</Button></View><Button onPress={onConfirm}>Conferma preview</Button></View> : null}{photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}</View>;
+  const hasPreviewUri = Boolean(photoDraft?.previewUrl?.trim());
+
+  return (
+    <View style={styles.photoControls}>
+      <Text style={styles.name}>{currentPhotoUrl ? "Modifica foto" : "Aggiungi foto"}</Text>
+      <Input onChangeText={setPreviewUrl} placeholder={`URI/base64 foto ${subjectLabel}`} value={previewUrl} />
+      <Input onChangeText={setMimeType} placeholder="MIME type" value={mimeType} />
+      <Input keyboardType="number-pad" onChangeText={setSizeText} placeholder="Dimensione byte" value={sizeText} />
+      <Button onPress={() => onPhotoDraft({ previewUrl, mimeType, sizeBytes: Number(sizeText) || 0 })}>Genera preview</Button>
+      {photoDraft ? (
+        <View style={styles.previewBox}>
+          {hasPreviewUri ? (
+            <Image
+              accessibilityLabel={`Preview foto ${subjectLabel}`}
+              source={{ uri: photoDraft.previewUrl }}
+              style={[
+                styles.previewImage,
+                { transform: [{ translateX: photoDraft.offsetX }, { translateY: photoDraft.offsetY }, { scale: photoDraft.zoom }] },
+              ]}
+            />
+          ) : (
+            <View style={styles.photoPlaceholder}><Text style={styles.body}>Foto</Text></View>
+          )}
+          <Text style={styles.body}>Crop: zoom {photoDraft.zoom.toFixed(1)} · X {photoDraft.offsetX} · Y {photoDraft.offsetY}</Text>
+          <View style={styles.buttonRow}>
+            <Button onPress={() => onPhotoTransform({ zoom: Math.max(0.5, photoDraft.zoom - 0.1) })}>Riduci</Button>
+            <Button onPress={() => onPhotoTransform({ zoom: Math.min(3, photoDraft.zoom + 0.1) })}>Zoom</Button>
+            <Button onPress={() => onPhotoTransform({ offsetX: photoDraft.offsetX - 4 })}>Sinistra</Button>
+            <Button onPress={() => onPhotoTransform({ offsetX: photoDraft.offsetX + 4 })}>Destra</Button>
+            <Button onPress={() => onPhotoTransform({ offsetY: photoDraft.offsetY - 4 })}>Su</Button>
+            <Button onPress={() => onPhotoTransform({ offsetY: photoDraft.offsetY + 4 })}>Giù</Button>
+          </View>
+          <Button onPress={onConfirm}>Conferma preview</Button>
+        </View>
+      ) : null}
+      {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
+    </View>
+  );
 }
+
 
 function OrderStep({ players, movePlayer, toggleCaptain, togglePlayer, toggleViceCaptain, updatePlayer }: Readonly<{ players: readonly PlayerListItem[]; movePlayer: (id: string, direction: -1 | 1) => void; toggleCaptain: (id: string) => void; togglePlayer: (id: string) => void; toggleViceCaptain: (id: string) => void; updatePlayer: (id: string, patch: Partial<PlayerListItem>) => void }>) {
   return <Card style={styles.section}><Text style={styles.cardTitle}>Ordine distinta</Text><Text style={styles.body}>Usa i pulsanti su/giù come alternativa mobile al drag & drop Web.</Text>{players.length === 0 ? <EmptyState message="Nessun convocato." /> : players.map((player, index) => <View key={player.id} style={styles.rowCard}><Text style={styles.name}>{index + 1}. {player.lastName} {player.firstName}</Text><Input editable={!player.suspended} keyboardType="number-pad" onChangeText={(value: string) => updatePlayer(player.id, { shirtNumber: value ? Number(value) : null })} placeholder="N° maglia" value={player.shirtNumber === null ? "" : String(player.shirtNumber)} /><View style={styles.buttonRow}>{lineupRoleOptions.map((option) => <Button key={option.value} disabled={player.role === option.value} onPress={() => updatePlayer(player.id, { role: option.value as PlayerLineupRole })}>{option.label}</Button>)}</View><View style={styles.buttonRow}><Button onPress={() => updatePlayer(player.id, { isGoalkeeper: !player.isGoalkeeper })}>{player.isGoalkeeper ? "No portiere" : "Portiere"}</Button><Button onPress={() => toggleCaptain(player.id)}>{player.isCaptain ? "No capitano" : "Capitano"}</Button><Button onPress={() => toggleViceCaptain(player.id)}>{player.isViceCaptain ? "No vice" : "Vice"}</Button></View><Text style={styles.body}>{getPlayerStatusLabel(player)}</Text><View style={styles.buttonRow}><Button disabled={index === 0} onPress={() => movePlayer(player.id, -1)}>Su</Button><Button disabled={index === players.length - 1} onPress={() => movePlayer(player.id, 1)}>Giù</Button><Button onPress={() => togglePlayer(player.id)} variant="danger">Rimuovi</Button></View></View>)}</Card>;
