@@ -3,6 +3,8 @@ import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 import { AuthGate } from "@/components/auth/auth-gate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { MobileScreen } from "@/components/ui/mobile-screen";
+import { MobileTabs } from "@/components/ui/mobile-tabs";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { useToast } from "@/components/ui/toast";
 import { fetchFederationDashboard, fetchFederationHistory, fetchFederationMatches, fetchFederationReports, fetchPhotoRequests } from "@/lib/federation-api-client";
@@ -13,6 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const sections = ["Cruscotto", "Calendario", "Referti", "Foto", "Storico"] as const;
+const sectionTabs = sections.map((label, index) => ({ key: String(index), label }));
 const reportStatuses: readonly ("all" | FederationReportStatus)[] = ["all", "missing", "draft", "submitted", "reviewed"];
 
 export default function FederationPage() {
@@ -20,29 +23,27 @@ export default function FederationPage() {
 
   return (
     <AuthGate allowedRole="federation">
-      <View style={styles.screen}>
+      <MobileScreen
+        contentStyle={styles.screen}
+        stickyHeader={
+          <MobileTabs
+            accessibilityLabel="Sezioni Federazione"
+            items={sectionTabs}
+            onChange={(key) => setSection(Number(key))}
+            value={String(section)}
+          />
+        }
+      >
         <View style={styles.header}>
           <Text style={styles.kicker}>Area Federazione</Text>
           <Text style={styles.title}>Cruscotto operativo</Text>
-        </View>
-        <View style={styles.sectionTabs}>
-          {sections.map((label, index) => (
-            <Pressable
-              accessibilityRole="button"
-              key={label}
-              onPress={() => setSection(index)}
-              style={[styles.sectionButton, section === index ? styles.sectionButtonActive : null]}
-            >
-              <Text style={[styles.sectionText, section === index ? styles.sectionTextActive : null]}>{label}</Text>
-            </Pressable>
-          ))}
         </View>
         {section === 0 ? <FederationDashboardPanel /> : null}
         {section === 1 ? <MatchCalendarPanel /> : null}
         {section === 2 ? <ReportsPanel /> : null}
         {section === 3 ? <PhotoRequestsPanel /> : null}
         {section === 4 ? <HistoryPanel /> : null}
-      </View>
+      </MobileScreen>
     </AuthGate>
   );
 }
@@ -272,12 +273,7 @@ const styles = StyleSheet.create({
   matchRow: { borderBottomColor: colors.border, borderBottomWidth: 1, gap: spacing.sm, padding: spacing.md },
   matchTitle: { color: colors.foreground, fontSize: 16, fontWeight: "700" },
   matchday: { color: colors.primary, fontSize: 13, fontWeight: "800" },
-  screen: { gap: spacing.lg, padding: spacing.xl },
-  sectionButton: { backgroundColor: colors.muted, borderRadius: radii.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  sectionButtonActive: { backgroundColor: colors.primary },
-  sectionTabs: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  sectionText: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
-  sectionTextActive: { color: colors.white },
+  screen: { gap: spacing.lg },
   statCard: { gap: spacing.sm },
   statGrid: { gap: spacing.md },
   statLabel: { color: colors.mutedForeground, fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
