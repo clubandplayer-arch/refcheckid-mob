@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -18,19 +18,22 @@ export function ImagePreview({
   title,
   uri,
 }: ImagePreviewProps) {
+  const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   const safeUri = uri?.trim();
+  useEffect(() => setFailed(false), [safeUri]);
+  const canRenderImage = Boolean(safeUri) && !failed;
   return (
     <>
       <Pressable
-        accessibilityLabel={safeUri ? `${accessibilityLabel}. Apri anteprima` : accessibilityLabel}
-        accessibilityRole={safeUri ? "imagebutton" : "image"}
-        disabled={!safeUri}
+        accessibilityLabel={canRenderImage ? `${accessibilityLabel}. Apri anteprima` : accessibilityLabel}
+        accessibilityRole={canRenderImage ? "imagebutton" : "image"}
+        disabled={!canRenderImage}
         onPress={() => setOpen(true)}
         style={[styles.frame, style]}
       >
-        {safeUri ? (
-          <Image resizeMode="contain" source={{ uri: safeUri }} style={styles.image} />
+        {canRenderImage ? (
+          <Image onError={() => setFailed(true)} resizeMode="contain" source={{ uri: safeUri }} style={styles.image} />
         ) : (
           <View style={styles.placeholder}>
             <Text style={styles.placeholderText}>{placeholder}</Text>
@@ -39,7 +42,7 @@ export function ImagePreview({
       </Pressable>
       <BottomSheet onClose={() => setOpen(false)} title={title} visible={open}>
         <View style={styles.previewFrame}>
-          {safeUri ? <Image resizeMode="contain" source={{ uri: safeUri }} style={styles.image} /> : <Text style={styles.placeholderText}>{placeholder}</Text>}
+          {canRenderImage ? <Image onError={() => setFailed(true)} resizeMode="contain" source={{ uri: safeUri }} style={styles.image} /> : <Text style={styles.placeholderText}>{placeholder}</Text>}
         </View>
       </BottomSheet>
     </>
