@@ -15,8 +15,10 @@ import { colors, spacing } from "@/lib/theme";
 type MobileScreenProps = Readonly<{
   children: ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
+  footer?: ReactNode;
   keyboardAvoiding?: boolean;
   scroll?: boolean;
+  stickyHeader?: ReactNode;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }>;
@@ -24,8 +26,10 @@ type MobileScreenProps = Readonly<{
 export function MobileScreen({
   children,
   contentStyle,
+  footer,
   keyboardAvoiding = false,
   scroll = true,
+  stickyHeader,
   style,
   testID,
 }: MobileScreenProps) {
@@ -37,13 +41,16 @@ export function MobileScreen({
     paddingTop: spacing.xl,
   };
   const content = scroll ? (
-    <ScrollView
-      contentContainerStyle={[styles.content, contentPadding, contentStyle]}
-      keyboardShouldPersistTaps="handled"
-      testID={testID ? `${testID}-scroll` : undefined}
-    >
-      {children}
-    </ScrollView>
+    <>
+      {stickyHeader ? <View style={[styles.stickyHeader, { paddingLeft: contentPadding.paddingLeft, paddingRight: contentPadding.paddingRight }]}>{stickyHeader}</View> : null}
+      <ScrollView
+        contentContainerStyle={[styles.content, contentPadding, stickyHeader ? styles.contentWithStickyHeader : null, contentStyle]}
+        keyboardShouldPersistTaps="handled"
+        testID={testID ? `${testID}-scroll` : undefined}
+      >
+        {children}
+      </ScrollView>
+    </>
   ) : (
     <View style={[styles.content, styles.flex, contentPadding, contentStyle]}>{children}</View>
   );
@@ -60,12 +67,27 @@ export function MobileScreen({
           {content}
         </KeyboardAvoidingView>
       ) : content}
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   content: { flexGrow: 1, gap: spacing.lg },
+  contentWithStickyHeader: { paddingTop: spacing.md },
   flex: { flex: 1 },
+  footer: {
+    backgroundColor: colors.background,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    padding: spacing.md,
+  },
   safeArea: { backgroundColor: colors.background, flex: 1 },
+  stickyHeader: {
+    backgroundColor: colors.background,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingBottom: spacing.sm,
+    paddingTop: spacing.sm,
+  },
 });

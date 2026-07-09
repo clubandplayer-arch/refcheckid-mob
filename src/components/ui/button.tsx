@@ -11,6 +11,7 @@ export function Button({ children, disabled, style, variant = "primary", ...prop
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
       style={({ pressed }: { pressed: boolean }) => [
         styles.button,
@@ -31,7 +32,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: radii.md,
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: 48,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     shadowColor: "#000",

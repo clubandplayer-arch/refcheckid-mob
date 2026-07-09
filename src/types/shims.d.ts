@@ -35,12 +35,14 @@ declare module "react-native" {
   export const Text: (props: Record<string, unknown>) => unknown;
   export const TextInput: (props: Record<string, unknown>) => unknown;
   export const Image: (props: Record<string, unknown>) => unknown;
+  export const Modal: (props: Record<string, unknown>) => unknown;
   export const Pressable: (props: Record<string, unknown>) => unknown;
   export const KeyboardAvoidingView: (props: Record<string, unknown>) => unknown;
   export const ScrollView: (props: Record<string, unknown>) => unknown;
   export const StatusBar: (props: Record<string, unknown>) => unknown;
   export const Platform: { OS: string };
   export const StyleSheet: { create<T extends Record<string, unknown>>(styles: T): T };
+  export function useWindowDimensions(): { width: number; height: number; scale: number; fontScale: number };
 }
 
 declare module "react-native-safe-area-context" {
