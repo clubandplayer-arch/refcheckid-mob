@@ -230,9 +230,19 @@ function RecognitionStep({
     ? allSubjects.filter((subject) => subject.teamName === activeTeamName)
     : allSubjects;
   const currentSubject = selectedTeamSubjects.find((subject) => !decisions[subject.id]) ?? null;
-  const completedCount = Object.keys(decisions).length;
-  const pendingCount = Math.max(allSubjects.length - completedCount, 0);
-  const fullRecognitionComplete = allSubjects.length > 0 && pendingCount === 0;
+  const selectedTeamCompletedCount = selectedTeamSubjects.filter((subject) => decisions[subject.id]).length;
+  const selectedTeamTotal = selectedTeamSubjects.length;
+  const currentTeamDecisionOrder = decisionOrder.filter((subjectId) => {
+    const subject = allSubjects.find((item) => item.id === subjectId);
+    return subject?.teamName === activeTeamName;
+  });
+  const completedCount = decisionOrder.length;
+  const recognizedSubjects = allSubjects.filter((subject) => decisions[subject.id]);
+  const recognizedTeams = new Set(recognizedSubjects.map((subject) => subject.teamName));
+  const hasHomeRecognition = teamNames[0] ? recognizedTeams.has(teamNames[0]) : false;
+  const hasAwayRecognition = teamNames[1] ? recognizedTeams.has(teamNames[1]) : false;
+  const fullRecognitionComplete =
+    completedCount === allSubjects.length && hasHomeRecognition && hasAwayRecognition;
   const teamRecognitionSummaries = teamNames.map((teamName) => {
     const teamSubjects = allSubjects.filter((subject) => subject.teamName === teamName);
     const completed = teamSubjects.filter((subject) => decisions[subject.id]).length;
@@ -268,7 +278,7 @@ function RecognitionStep({
   }
 
   function goBackToPreviousSubject() {
-    const previousSubjectId = decisionOrder.at(-1);
+    const previousSubjectId = currentTeamDecisionOrder.at(-1);
     if (!previousSubjectId) return;
     const previousSubject = allSubjects.find((subject) => subject.id === previousSubjectId);
     setDecisions((current) => {
@@ -285,7 +295,7 @@ function RecognitionStep({
     return (
       <Card style={[styles.cardGap, styles.centeredCard]}>
         <Text style={styles.heading}>{fullRecognitionComplete ? "Riconoscimento completato" : "Seleziona la prossima squadra"}</Text>
-        <Text style={styles.body}>{completedCount} tesserati verificati. Pending: {pendingCount}.</Text>
+        <Text style={styles.body}>{completedCount} tesserati verificati. Ogni squadra va chiusa separatamente.</Text>
         <View style={styles.sheetGrid}>
           {teamRecognitionSummaries.map((summary) => (
             <View key={summary.teamName} style={[styles.teamSummary, summary.isComplete ? styles.teamSummaryComplete : styles.teamSummaryPending]}>
@@ -310,7 +320,7 @@ function RecognitionStep({
             {isRecognitionClosed ? "Riconoscimento chiuso" : "Conferma chiusura riconoscimento"}
           </Button>
         ) : (
-          <Text style={styles.pendingAlert}>Completa tutti i tesserati prima di chiudere il riconoscimento.</Text>
+          <Text style={styles.pendingAlert}>Completa le squadre evidenziate in arancione prima di chiudere il riconoscimento.</Text>
         )}
       </Card>
     );
@@ -321,9 +331,9 @@ function RecognitionStep({
       <View style={styles.sheetHeader}>
         <View style={styles.sheetTitleBlock}>
           <Text style={styles.heading}>Riconoscimento</Text>
-          <Text style={styles.body}>Controlla foto, dati e documento. Approva o rifiuta ogni tesserato.</Text>
+          <Text style={styles.body}>Controlla foto, dati e documento. Conferma il tesserato o torna indietro per rivedere.</Text>
         </View>
-        <Text style={styles.progressPill}>Pending {pendingCount}</Text>
+        <Text style={styles.progressPill}>{selectedTeamCompletedCount}/{selectedTeamTotal}</Text>
       </View>
       <View style={styles.photoFrame}>
         {currentSubject.photoUrl ? (
@@ -344,15 +354,13 @@ function RecognitionStep({
           <View style={styles.detailList}>
             <DetailRow label="Tipo" value={currentSubject.document.type} />
             <DetailRow label="Numero" value={currentSubject.document.number} />
-            <DetailRow label="Scadenza" value={new Date(currentSubject.document.expiresAt).toLocaleDateString("it-IT")} />
           </View>
         ) : (
           <Text style={styles.body}>Tocca per aprire i dati documento.</Text>
         )}
       </Pressable>
       <View style={styles.actionGrid}>
-        <Button disabled={decisionOrder.length === 0} onPress={goBackToPreviousSubject}>Indietro</Button>
-        <Button variant="danger" onPress={() => decide(currentSubject, "rejected")}>Rifiuta</Button>
+        <Button disabled={currentTeamDecisionOrder.length === 0} onPress={goBackToPreviousSubject}>Indietro</Button>
         <Button onPress={() => decide(currentSubject, "approved")}>Conferma riconoscimento</Button>
       </View>
     </Card>
