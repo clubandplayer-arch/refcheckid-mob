@@ -1,6 +1,7 @@
 import { Redirect, router } from "expo-router";
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/button";
 import { logoutSession } from "@/lib/auth-client";
 import { colors, spacing } from "@/lib/theme";
@@ -32,10 +33,12 @@ export function AuthGate({ allowedRole, children }: Readonly<{ allowedRole: AppR
 
   return (
     <View style={styles.container}>
-      <View style={styles.userBar}>
-        <Text style={styles.userName}>{session.user.displayName}</Text>
-        <Button onPress={() => void handleLogout()}>Logout</Button>
-      </View>
+      <SafeAreaView edges={["top", "left", "right"]} style={styles.userBarSafe}>
+        <View style={styles.userBar}>
+          <Text style={styles.userName}>{session.user.displayName}</Text>
+          <Button onPress={() => void handleLogout()}>Logout</Button>
+        </View>
+      </SafeAreaView>
       {children}
     </View>
   );
@@ -53,11 +56,13 @@ const styles = StyleSheet.create({
   container: { backgroundColor: colors.background, flex: 1 },
   userBar: {
     alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
     padding: spacing.lg,
+  },
+  userBarSafe: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
   },
   userName: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
   verifyScreen: { flex: 1, padding: spacing.xl },

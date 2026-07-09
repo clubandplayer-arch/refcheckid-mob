@@ -30,7 +30,7 @@ export function ImagePreview({
         style={[styles.frame, style]}
       >
         {safeUri ? (
-          <Image source={{ uri: safeUri }} style={styles.image} />
+          <Image resizeMode="contain" source={{ uri: safeUri }} style={styles.image} />
         ) : (
           <View style={styles.placeholder}>
             <Text style={styles.placeholderText}>{placeholder}</Text>
@@ -39,7 +39,7 @@ export function ImagePreview({
       </Pressable>
       <BottomSheet onClose={() => setOpen(false)} title={title} visible={open}>
         <View style={styles.previewFrame}>
-          {safeUri ? <Image source={{ uri: safeUri }} style={styles.image} /> : <Text style={styles.placeholderText}>{placeholder}</Text>}
+          {safeUri ? <Image resizeMode="contain" source={{ uri: safeUri }} style={styles.image} /> : <Text style={styles.placeholderText}>{placeholder}</Text>}
         </View>
       </BottomSheet>
     </>

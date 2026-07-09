@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { AuthGate } from "@/components/auth/auth-gate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ImagePreview } from "@/components/ui/image-preview";
 import { MobileScreen } from "@/components/ui/mobile-screen";
 import { MobileTabs } from "@/components/ui/mobile-tabs";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { useToast } from "@/components/ui/toast";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 import { fetchFederationDashboard, fetchFederationHistory, fetchFederationMatches, fetchFederationReports, fetchPhotoRequests } from "@/lib/federation-api-client";
 import { decideManagerPhotoApprovalRequest } from "@/lib/manager-photo-store";
 import type { FederationHistoryItem, FederationMatchListItem, FederationReport, FederationReportEvent, FederationReportStatus, PhotoRequest, PhotoRequestStatus } from "@/lib/federation-types";
@@ -25,6 +27,7 @@ export default function FederationPage() {
     <AuthGate allowedRole="federation">
       <MobileScreen
         contentStyle={styles.screen}
+        edges={["left", "right"]}
         stickyHeader={
           <MobileTabs
             accessibilityLabel="Sezioni Federazione"
@@ -167,11 +170,20 @@ function PhotoRequestsPanel() {
 }
 
 function PhotoRequestCard({ request, transitionRequest }: Readonly<{ request: PhotoRequest; transitionRequest: (requestId: string, status: Exclude<PhotoRequestStatus, "pending">) => void }>) {
-  return <View style={styles.photoCard}><View style={styles.detailHeader}><View><Text style={styles.matchTitle}>{request.playerName}</Text><Text style={styles.body}>Tesserato</Text><Text style={styles.body}>{request.clubName}</Text></View><StatusBadge status={request.status} /></View><View style={styles.photoGrid}><PhotoBox label="Foto attuale" photoUrl={request.currentPhotoUrl} /><PhotoBox label="Nuova foto da approvare" photoUrl={request.proposedPhotoUrl} /></View>{request.status === "rejected" ? <Text style={styles.dangerNote}>Rifiuto comunicato al Club: resta valida la foto attuale e la Federazione può richiedere motivazione dell'upload e documenti afferenti l'identità del tesserato.</Text> : null}{request.status === "approved" ? <Text style={styles.successNote}>Foto approvata: la nuova immagine è subito disponibile al Club.</Text> : null}<View style={styles.buttonRow}><Button disabled={request.status !== "pending"} onPress={() => transitionRequest(request.id, "approved")}>Approva</Button><Button disabled={request.status !== "pending"} onPress={() => transitionRequest(request.id, "rejected")} variant="danger">Rifiuta</Button></View></View>;
+  return <View style={styles.photoCard}><View style={styles.photoCardHeader}><View style={styles.cardGapSmall}><Text style={styles.matchTitle}>{request.playerName}</Text><Text style={styles.body}>Tesserato · {request.clubName}</Text></View><StatusBadge status={request.status} /></View><View style={styles.photoGrid}><PhotoBox label="Foto attuale" photoUrl={request.currentPhotoUrl} /><PhotoBox label="Nuova foto da approvare" photoUrl={request.proposedPhotoUrl} /></View>{request.status === "rejected" ? <Text style={styles.dangerNote}>Rifiuto comunicato al Club: resta valida la foto attuale e la Federazione può richiedere motivazione dell'upload e documenti afferenti l'identità del tesserato.</Text> : null}{request.status === "approved" ? <Text style={styles.successNote}>Foto approvata: la nuova immagine è subito disponibile al Club.</Text> : null}<View style={styles.photoActions}><Button disabled={request.status !== "pending"} onPress={() => transitionRequest(request.id, "approved")}>Approva</Button><Button disabled={request.status !== "pending"} onPress={() => transitionRequest(request.id, "rejected")} variant="danger">Rifiuta</Button></View></View>;
 }
 
 function PhotoBox({ label, photoUrl }: Readonly<{ label: string; photoUrl: string | null }>) {
-  return <View style={styles.cardGapSmall}><Text style={styles.filterLabel}>{label}</Text><View style={styles.photoBox}>{photoUrl ? <Image source={{ uri: photoUrl }} style={styles.photoImage} /> : <Text style={styles.body}>Nessuna immagine</Text>}</View></View>;
+  const resolvedPhotoUrl = resolvePhotoUrl(photoUrl);
+  return <View style={styles.cardGapSmall}><Text style={styles.filterLabel}>{label}</Text><ImagePreview accessibilityLabel={label} placeholder="Nessuna immagine" style={styles.photoPreview} title={label} uri={resolvedPhotoUrl} />{resolvedPhotoUrl ? <Text style={styles.photoHint}>Tocca per ingrandire</Text> : null}</View>;
+}
+
+function resolvePhotoUrl(photoUrl: string | null): string | null {
+  const trimmed = photoUrl?.trim();
+  if (!trimmed || trimmed.endsWith(".svg")) return null;
+  if (/^(content|data|file|https?):/u.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("/")) return `${getApiBaseUrl().replace(/\/api\/v1\/?$/u, "")}${trimmed}`;
+  return trimmed;
 }
 
 function HistoryPanel() {
@@ -250,10 +262,12 @@ const styles = StyleSheet.create({
   inputLike: { borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, color: colors.foreground, padding: spacing.md },
   listButton: { borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
   listButtonActive: { backgroundColor: colors.muted, borderColor: colors.primary },
-  photoBox: { alignItems: "center", aspectRatio: 1, backgroundColor: colors.muted, borderRadius: radii.lg, justifyContent: "center", overflow: "hidden" },
+  photoActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingTop: spacing.sm },
   photoCard: { borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, gap: spacing.md, padding: spacing.md },
-  photoGrid: { gap: spacing.md },
-  photoImage: { height: "100%", width: "100%" },
+  photoCardHeader: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md, justifyContent: "space-between" },
+  photoGrid: { gap: spacing.lg },
+  photoHint: { color: colors.mutedForeground, fontSize: 12, fontWeight: "600" },
+  photoPreview: { aspectRatio: 3 / 4, minHeight: 220 },
   scoreBadge: { backgroundColor: colors.primary, borderRadius: radii.lg, color: colors.white, fontSize: 22, fontWeight: "900", paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   successNote: { backgroundColor: colors.successBackground, borderRadius: radii.md, color: colors.successText, fontSize: 12, lineHeight: 18, padding: spacing.sm },
   cardGap: { gap: spacing.lg },

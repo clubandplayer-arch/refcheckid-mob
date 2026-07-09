@@ -15,6 +15,7 @@ import { colors, spacing } from "@/lib/theme";
 type MobileScreenProps = Readonly<{
   children: ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
+  edges?: readonly ("bottom" | "left" | "right" | "top")[];
   footer?: ReactNode;
   keyboardAvoiding?: boolean;
   scroll?: boolean;
@@ -26,6 +27,7 @@ type MobileScreenProps = Readonly<{
 export function MobileScreen({
   children,
   contentStyle,
+  edges = ["top", "left", "right"],
   footer,
   keyboardAvoiding = false,
   scroll = true,
@@ -56,7 +58,7 @@ export function MobileScreen({
   );
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={[styles.safeArea, style]} testID={testID}>
+    <SafeAreaView edges={edges} style={[styles.safeArea, style]} testID={testID}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       {keyboardAvoiding ? (
         <KeyboardAvoidingView
