@@ -1,6 +1,7 @@
 import { Redirect } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import { roleRedirects } from "@/components/auth/auth-gate";
+import { MobileScreen } from "@/components/ui/mobile-screen";
 import { LoginForm } from "@/features/auth/login-form";
 import { colors, spacing } from "@/lib/theme";
 import { useSession } from "@/lib/session";
@@ -11,12 +12,13 @@ export default function Index() {
   if (isReady && session) return <Redirect href={roleRedirects[session.user.role]} />;
 
   return (
-    <View style={styles.screen}>
+    <MobileScreen contentStyle={styles.screen} keyboardAvoiding style={styles.shell}>
       <LoginForm />
-    </View>
+    </MobileScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: colors.muted, flex: 1, justifyContent: "center", padding: spacing.xl },
+  shell: { backgroundColor: colors.muted },
+  screen: { flexGrow: 1, justifyContent: "center", paddingVertical: spacing.xl },
 });

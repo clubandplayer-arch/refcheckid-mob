@@ -38,7 +38,7 @@ async function pickPhoto(launch: () => Promise<ImagePickerResult>): Promise<Nati
   if (!asset?.uri) return null;
   return {
     mimeType: asset.mimeType ?? inferMimeType(asset.uri, asset.type),
-    previewUrl: asset.base64 ? `data:${asset.mimeType ?? "image/jpeg"};base64,${asset.base64}` : asset.uri,
+    previewUrl: asset.uri,
     sizeBytes: asset.fileSize ?? 0,
   };
 }
