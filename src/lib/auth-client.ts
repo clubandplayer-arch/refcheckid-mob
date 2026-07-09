@@ -26,8 +26,6 @@ export async function authenticateWithPassword(input: {
   password: string;
 }): Promise<AppSession> {
   const url = `${getApiBaseUrl()}/auth/login`;
-  const safePayload = { email: input.email, passwordLength: input.password.length };
-  console.info("[RefCheckID][auth] login request", { payload: safePayload, url });
 
   let response: Response;
   try {
@@ -38,7 +36,6 @@ export async function authenticateWithPassword(input: {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Network/CORS error";
-    console.warn("[RefCheckID][auth] login fetch exception", { error: message, url });
     throw new AuthError("INVALID_CREDENTIALS", "Accesso non riuscito.", {
       corsOrNetworkError: message,
       url,
@@ -47,11 +44,6 @@ export async function authenticateWithPassword(input: {
 
   const responseText = await response.text();
   const responseBody = parseResponseBody(responseText);
-  console.info("[RefCheckID][auth] login response", {
-    body: responseBody,
-    status: response.status,
-    url,
-  });
   if (!response.ok) {
     const body = responseBody as { error?: AuthErrorCode; message?: string };
     throw new AuthError(body.error ?? "INVALID_CREDENTIALS", body.message ?? "Accesso non riuscito.", {

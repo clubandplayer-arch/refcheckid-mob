@@ -113,7 +113,7 @@ declare module "@testing-library/react-native/extend-expect" {}
 
 
 declare module "expo-image-picker" {
-  export const MediaTypeOptions: { Images: unknown };
+  export const MediaType: { Images: "images" };
   export function requestCameraPermissionsAsync(): Promise<{ granted?: boolean }>;
   export function requestMediaLibraryPermissionsAsync(): Promise<{ granted?: boolean }>;
   export function launchCameraAsync(options: Record<string, unknown>): Promise<{ canceled?: boolean; assets?: readonly Record<string, unknown>[] | null }>;

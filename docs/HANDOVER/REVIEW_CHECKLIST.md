@@ -2,6 +2,28 @@
 
 > Wave 1, Wave 2, Wave 3, Wave 4 e Wave 5 approvate dopo review tecnica. Tutti i punti verificati risultano completati.
 
+## Chiusura P0/P1 Mobile — Hardening e Foto Distinta
+
+### Stato review
+
+- [x] P0 Hardening Mobile completata e verificata.
+- [x] P1 Foto Distinta completata e verificata manualmente.
+- [x] Login funzionante dopo rimozione diagnostica temporanea.
+- [x] Backend raggiungibile.
+- [x] Development Build funzionante.
+- [x] Workflow Distinta funzionante.
+- [x] UX Foto Mobile con azioni `Scatta foto` / `Scegli dalla galleria` verificata.
+- [x] Nessuna regressione introdotta da P0/P1.
+
+### Chiusura P1 Foto Distinta
+
+- [x] La P1 Foto Distinta mantiene la Source of Truth Web attuale basata su `manager-photo-store`.
+- [x] La P1 Mobile non anticipa il futuro flusso backend/storage-first.
+- [x] Le foto ufficiali backend/storage-first sono escluse dalla P1 Mobile e appartengono alla futura evoluzione Web/Backend della Source of Truth.
+- [x] La UX Mobile usa picker/camera nativi, ma conserva le validazioni e la persistenza/override locale coerenti con il Web attuale.
+- [x] Il warning di deprecazione Expo Image Picker è stato rimosso aggiornando l'uso di `mediaTypes` alla nuova API SDK 57.
+- [x] I log temporanei del login sono stati rimossi.
+
 ## Wave 1 — Fondazioni applicative, configurazione e design system minimo
 
 ### Checklist Feature Parity Wave 1

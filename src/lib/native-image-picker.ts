@@ -47,7 +47,7 @@ function buildImagePickerOptions() {
   return {
     allowsEditing: true,
     base64: true,
-    mediaTypes: ImagePicker.MediaTypeOptions?.Images ?? "images",
+    mediaTypes: ["images"],
     quality: 0.9,
   };
 }

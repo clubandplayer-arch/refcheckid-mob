@@ -68,35 +68,21 @@ La Source of Truth backend contiene l'account:
 
 Il backend normalizza l'email a lowercase e confronta la password esatta. Se utente, password e stato enabled sono validi, ritorna una sessione `200`.
 
-## Diagnostica aggiunta temporaneamente
+## Diagnostica temporanea rimossa
 
-È stata aggiunta diagnostica temporanea in `src/lib/auth-client.ts`, senza cambiare la logica, per stampare:
+La diagnostica runtime temporanea aggiunta in `src/lib/auth-client.ts` per il debug della POST `/auth/login` è stata rimossa dopo la conferma manuale del login, mantenendo invariata la logica applicativa.
 
-- URL completo della POST `/auth/login`;
-- payload sicuro: email e lunghezza password, senza stampare la password;
-- status HTTP della risposta;
-- body della risposta;
-- eccezione fetch in caso di errore rete/CORS.
+## Ipotesi verificate durante il debug
 
-Log attesi:
-
-```text
-[RefCheckID][auth] login request { url, payload: { email, passwordLength } }
-[RefCheckID][auth] login response { url, status, body }
-[RefCheckID][auth] login fetch exception { url, error }
-```
-
-## Ipotesi da confermare con i log
-
-Dato che la P0 non modifica i file del login, la causa più probabile va confermata dal log runtime:
+Dato che la P0 non modifica i file del login, la causa più probabile andava distinta controllando:
 
 1. URL errato/non raggiungibile, per esempio fallback Mobile a `http://localhost:4000/api/v1` su dispositivo fisico.
 2. Backend non in ascolto sull'host/porta chiamati dall'app.
 3. Risposta HTTP non-200 dal backend con body diagnostico (`USER_NOT_FOUND`, `INVALID_CREDENTIALS`, `ACCOUNT_DISABLED`).
 4. Eccezione fetch/network invece di risposta HTTP.
 
-## Evidenza attesa per distinguere Mobile vs backend
+## Evidenza usata per distinguere Mobile vs backend
 
-- Se compare `login fetch exception`, il backend non è stato raggiunto dal Mobile.
-- Se compare `login response` con `status: 401`, il backend è stato raggiunto e il body indica il motivo applicativo.
-- Se compare `login response` con `status: 200`, il login backend riesce e l'errore è dopo la sessione/navigazione.
+- Eccezione fetch/network: backend non raggiunto dal Mobile.
+- Risposta HTTP `401`: backend raggiunto con esito applicativo negativo.
+- Risposta HTTP `200`: login backend riuscito, eventuale errore successivo da cercare in sessione/navigazione.
