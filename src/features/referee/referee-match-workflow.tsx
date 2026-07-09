@@ -54,30 +54,7 @@ export function RefereeMatchWorkflow() {
 
   return (
     <View style={styles.workflow}>
-      <View style={styles.stepper}>
-        {steps.map((label, index) => {
-          const isRecognitionStepDisabled = recognitionClosed && index < 2;
-          return (
-            <Pressable
-              accessibilityRole="button"
-              disabled={isRecognitionStepDisabled}
-              key={label}
-              onPress={() => {
-                if (!isRecognitionStepDisabled) setStep(index);
-              }}
-              style={[
-                styles.stepButton,
-                step === index ? styles.stepButtonActive : null,
-                isRecognitionStepDisabled ? styles.stepButtonDisabled : null,
-              ]}
-            >
-              <Text style={[styles.stepText, step === index ? styles.stepTextActive : null]}>
-                {index + 1}. {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <RefereeWorkflowStepper currentStep={step} recognitionClosed={recognitionClosed} onChangeStep={setStep} />
 
       {step === 0 ? (
         <SheetVerificationStep
@@ -101,8 +78,38 @@ export function RefereeMatchWorkflow() {
         />
       ) : null}
       {step === 2 ? (
-<MatchReportStep fullRecognitionComplete={fullRecognitionComplete} matchId={matchId} />
+        <MatchReportStep fullRecognitionComplete={fullRecognitionComplete} matchId={matchId} />
       ) : null}
+      <RefereeWorkflowStepper currentStep={step} recognitionClosed={recognitionClosed} onChangeStep={setStep} />
+    </View>
+  );
+}
+
+function RefereeWorkflowStepper({ currentStep, onChangeStep, recognitionClosed }: Readonly<{ currentStep: number; onChangeStep: (step: number) => void; recognitionClosed: boolean }>) {
+  return (
+    <View style={styles.stepper}>
+      {steps.map((label, index) => {
+        const isRecognitionStepDisabled = recognitionClosed && index < 2;
+        return (
+          <Pressable
+            accessibilityRole="button"
+            disabled={isRecognitionStepDisabled}
+            key={label}
+            onPress={() => {
+              if (!isRecognitionStepDisabled) onChangeStep(index);
+            }}
+            style={[
+              styles.stepButton,
+              currentStep === index ? styles.stepButtonActive : null,
+              isRecognitionStepDisabled ? styles.stepButtonDisabled : null,
+            ]}
+          >
+            <Text style={[styles.stepText, currentStep === index ? styles.stepTextActive : null]}>
+              {index + 1}. {label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }

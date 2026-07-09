@@ -218,13 +218,18 @@ export function MatchSheetWorkflow() {
         {isReadOnly ? <Text style={styles.readOnly}>Distinta inviata: non puoi più modificarla. Se serve correggere qualcosa, avvisa l’arbitro o la segreteria.</Text> : null}
         <Button disabled={resetSmokeMutation.isPending} onPress={() => resetSmokeMutation.mutate()}>Ripristina distinta di prova</Button>
       </View>
-      <View style={styles.stepTabs}>{steps.map((label, index) => <Button key={label} disabled={step === index} onPress={() => setStep(index)}>{index + 1}. {label}</Button>)}</View>
+      <MatchSheetStepper currentStep={step} onChangeStep={setStep} />
       {step === 0 ? <PlayersStep onConfirmPhoto={(playerId) => confirmPhoto(playerId, (photoUrl) => updatePlayerPhoto(playerId, photoUrl))} onPhotoDraft={handlePhotoDraft} onPhotoTransform={updatePhotoDraftTransform} photoDraft={photoDraft} photoError={photoError} players={filteredPlayers} query={query} setQuery={setQuery} togglePlayer={togglePlayer} /> : null}
       {step === 1 ? <OrderStep players={calledPlayers} movePlayer={movePlayer} toggleCaptain={toggleCaptain} togglePlayer={togglePlayer} toggleViceCaptain={toggleViceCaptain} updatePlayer={updatePlayer} /> : null}
       {step === 2 ? <StaffStep onConfirmPhoto={(staffId) => confirmPhoto(staffId, (photoUrl) => updateStaffPhoto(staffId, photoUrl))} onPhotoDraft={handlePhotoDraft} onPhotoTransform={updatePhotoDraftTransform} photoDraft={photoDraft} photoError={photoError} staff={staff} toggleStaff={toggleStaff} /> : null}
       {step === 3 ? <SummaryStep isReadOnly={isReadOnly} isSubmitting={submitMutation.isPending} onInvalidSubmit={(message) => notify(message, "error")} onSubmit={() => submitMutation.mutate()} players={calledPlayers} staff={calledStaff} /> : null}
+      <MatchSheetStepper currentStep={step} onChangeStep={setStep} />
     </Screen>
   );
+}
+
+function MatchSheetStepper({ currentStep, onChangeStep }: Readonly<{ currentStep: number; onChangeStep: (step: number) => void }>) {
+  return <View style={styles.stepTabs}>{steps.map((label, index) => <Button key={label} disabled={currentStep === index} onPress={() => onChangeStep(index)}>{index + 1}. {label}</Button>)}</View>;
 }
 
 function Screen({ children }: Readonly<{ children: ReactNode }>) {

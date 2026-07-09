@@ -36,7 +36,16 @@ declare module "react-native" {
   export const TextInput: (props: Record<string, unknown>) => unknown;
   export const Image: (props: Record<string, unknown>) => unknown;
   export const Pressable: (props: Record<string, unknown>) => unknown;
+  export const KeyboardAvoidingView: (props: Record<string, unknown>) => unknown;
+  export const ScrollView: (props: Record<string, unknown>) => unknown;
+  export const StatusBar: (props: Record<string, unknown>) => unknown;
+  export const Platform: { OS: string };
   export const StyleSheet: { create<T extends Record<string, unknown>>(styles: T): T };
+}
+
+declare module "react-native-safe-area-context" {
+  export const SafeAreaView: (props: Record<string, unknown>) => unknown;
+  export function useSafeAreaInsets(): { bottom: number; left: number; right: number; top: number };
 }
 
 declare module "@tanstack/react-query" {
