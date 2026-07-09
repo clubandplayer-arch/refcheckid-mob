@@ -8,10 +8,10 @@ import { MobileScreen } from "@/components/ui/mobile-screen";
 import { MobileTabs } from "@/components/ui/mobile-tabs";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { useToast } from "@/components/ui/toast";
-import { getApiBaseUrl } from "@/lib/api-base-url";
 import { fetchFederationDashboard, fetchFederationHistory, fetchFederationMatches, fetchFederationReports, fetchPhotoRequests } from "@/lib/federation-api-client";
 import { decideManagerPhotoApprovalRequest } from "@/lib/manager-photo-store";
 import type { FederationHistoryItem, FederationMatchListItem, FederationReport, FederationReportEvent, FederationReportStatus, PhotoRequest, PhotoRequestStatus } from "@/lib/federation-types";
+import { resolveRenderablePhotoUrl } from "@/lib/photo-url";
 import { queryKeys, useApiQuery } from "@/lib/query";
 import { useQueryClient } from "@tanstack/react-query";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -178,17 +178,10 @@ function PhotoRequestCard({ request, transitionRequest }: Readonly<{ request: Ph
 }
 
 function PhotoBox({ label, photoUrl }: Readonly<{ label: string; photoUrl: string | null }>) {
-  const resolvedPhotoUrl = resolvePhotoUrl(photoUrl);
+  const resolvedPhotoUrl = resolveRenderablePhotoUrl(photoUrl);
   return <View style={styles.cardGapSmall}><Text style={styles.filterLabel}>{label}</Text><ImagePreview accessibilityLabel={label} placeholder="Nessuna immagine" style={styles.photoPreview} title={label} uri={resolvedPhotoUrl} />{resolvedPhotoUrl ? <Text style={styles.photoHint}>Tocca per ingrandire</Text> : null}</View>;
 }
 
-function resolvePhotoUrl(photoUrl: string | null): string | null {
-  const trimmed = photoUrl?.trim();
-  if (!trimmed || trimmed.endsWith(".svg")) return null;
-  if (/^(content|data|file|https?):/u.test(trimmed)) return trimmed;
-  const apiOrigin = getApiBaseUrl().replace(/\/api\/v1\/?$/u, "");
-  return `${apiOrigin}/${trimmed.replace(/^\/+/, "")}`;
-}
 
 function HistoryPanel() {
   const historyQuery = useApiQuery(queryKeys.audit, fetchFederationHistory);

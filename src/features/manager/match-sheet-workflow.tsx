@@ -1,8 +1,10 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MobileTabs } from "@/components/ui/mobile-tabs";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { fetchMatchSheets, fetchPlayers, fetchStaff, resetSmokeMatchSheet, submitMatchSheet } from "@/lib/api-client";
 import { managerTeamConfig, getCurrentManagerTeam } from "@/lib/manager-team";
@@ -24,6 +26,7 @@ import type { PlayerLineupRole, PlayerListItem, StaffListItem } from "@/lib/type
 const EMPTY_PLAYERS: readonly PlayerListItem[] = [];
 const EMPTY_STAFF: readonly StaffListItem[] = [];
 const steps = ["Compilazione", "Ordine", "Staff", "Riepilogo"] as const;
+const stepTabs = steps.map((label, index) => ({ key: String(index), label: `${index + 1}. ${label}` }));
 const maxPhotoSizeBytes = 5 * 1024 * 1024;
 
 type PhotoDraft = { id: string; previewUrl: string; mimeType: string; sizeBytes: number; zoom: number; offsetX: number; offsetY: number };
@@ -235,7 +238,7 @@ export function MatchSheetWorkflow() {
 }
 
 function MatchSheetStepper({ currentStep, onChangeStep }: Readonly<{ currentStep: number; onChangeStep: (step: number) => void }>) {
-  return <View style={styles.stepTabs}>{steps.map((label, index) => <Button key={label} disabled={currentStep === index} onPress={() => onChangeStep(index)}>{index + 1}. {label}</Button>)}</View>;
+  return <MobileTabs accessibilityLabel="Step distinta" items={stepTabs} onChange={(key) => onChangeStep(Number(key))} value={String(currentStep)} />;
 }
 
 function Screen({ children }: Readonly<{ children: ReactNode }>) {
@@ -251,6 +254,7 @@ function PhotoApprovalNotice() {
 }
 
 function PhotoCaptureControls({ currentPhotoUrl, onCancel, onConfirm, onPhotoDraft, onPhotoError, onPhotoTransform, photoDraft, photoError, subjectLabel }: Readonly<{ currentPhotoUrl: string | null; onCancel: () => void; onConfirm: () => void; onPhotoDraft: (draft: Pick<PhotoDraft, "previewUrl" | "mimeType" | "sizeBytes"> | null) => void; onPhotoError: (message: string | null) => void; onPhotoTransform: (transform: Partial<Pick<PhotoDraft, "zoom" | "offsetX" | "offsetY">>) => void; photoDraft: PhotoDraft | null; photoError: string | null; subjectLabel: string }>) {
+  const [open, setOpen] = useState(false);
   const hasPreviewUri = Boolean(photoDraft?.previewUrl?.trim());
   const photoStatus = currentPhotoUrl ? "Foto presente" : "Foto mancante";
 
@@ -264,46 +268,61 @@ function PhotoCaptureControls({ currentPhotoUrl, onCancel, onConfirm, onPhotoDra
     }
   }
 
+  function handleCancel() {
+    onCancel();
+    setOpen(false);
+  }
+
+  function handleConfirm() {
+    onConfirm();
+    setOpen(false);
+  }
+
   return (
-    <View style={styles.photoControls}>
+    <View style={styles.photoControlsCompact}>
       <View style={styles.photoControlsHeader}>
-        <Text style={styles.name}>{currentPhotoUrl ? "Sostituisci foto" : "Aggiungi foto"}</Text>
-        <Text style={styles.body}>{photoStatus}</Text>
+        <Text style={styles.name}>{photoStatus}</Text>
+        <Text style={styles.body}>{currentPhotoUrl ? "Tocca per sostituire o verificare la foto." : "Aggiungi una foto frontale e visibile."}</Text>
       </View>
-      <View style={styles.buttonRow}>
-        <Button onPress={() => void selectPhoto("camera")}>{currentPhotoUrl ? "Scatta nuova foto" : "Scatta foto"}</Button>
-        <Button onPress={() => void selectPhoto("library")}>{currentPhotoUrl ? "Sostituisci dalla galleria" : "Scegli dalla galleria"}</Button>
-      </View>
-      {photoDraft ? (
-        <View style={styles.previewBox}>
-          {hasPreviewUri ? (
-            <Image
-              accessibilityLabel={`Preview foto ${subjectLabel}`}
-              source={{ uri: photoDraft.previewUrl }}
-              style={[
-                styles.previewImage,
-                { transform: [{ translateX: photoDraft.offsetX }, { translateY: photoDraft.offsetY }, { scale: photoDraft.zoom }] },
-              ]}
-            />
-          ) : (
-            <View style={styles.photoPlaceholder}><Text style={styles.body}>Foto</Text></View>
-          )}
-          <Text style={styles.body}>Anteprima foto selezionata · zoom {photoDraft.zoom.toFixed(1)}</Text>
+      <Button onPress={() => setOpen(true)}>{currentPhotoUrl ? "Gestisci foto" : "Aggiungi foto"}</Button>
+      <BottomSheet onClose={() => setOpen(false)} title={`${currentPhotoUrl ? "Sostituisci" : "Aggiungi"} foto ${subjectLabel}`} visible={open}>
+        <View style={styles.photoControls}>
           <View style={styles.buttonRow}>
-            <Button onPress={() => onPhotoTransform({ zoom: Math.max(0.5, photoDraft.zoom - 0.1) })}>Riduci</Button>
-            <Button onPress={() => onPhotoTransform({ zoom: Math.min(3, photoDraft.zoom + 0.1) })}>Zoom</Button>
-            <Button onPress={() => onPhotoTransform({ offsetX: photoDraft.offsetX - 4 })}>Sinistra</Button>
-            <Button onPress={() => onPhotoTransform({ offsetX: photoDraft.offsetX + 4 })}>Destra</Button>
-            <Button onPress={() => onPhotoTransform({ offsetY: photoDraft.offsetY - 4 })}>Su</Button>
-            <Button onPress={() => onPhotoTransform({ offsetY: photoDraft.offsetY + 4 })}>Giù</Button>
+            <Button onPress={() => void selectPhoto("camera")}>{currentPhotoUrl ? "Scatta nuova foto" : "Scatta foto"}</Button>
+            <Button onPress={() => void selectPhoto("library")}>{currentPhotoUrl ? "Sostituisci dalla galleria" : "Scegli dalla galleria"}</Button>
           </View>
-          <View style={styles.buttonRow}>
-            <Button onPress={onConfirm}>Conferma foto</Button>
-            <Button onPress={onCancel}>Annulla</Button>
-          </View>
+          {photoDraft ? (
+            <View style={styles.previewBox}>
+              {hasPreviewUri ? (
+                <Image
+                  accessibilityLabel={`Preview foto ${subjectLabel}`}
+                  source={{ uri: photoDraft.previewUrl }}
+                  style={[
+                    styles.previewImage,
+                    { transform: [{ translateX: photoDraft.offsetX }, { translateY: photoDraft.offsetY }, { scale: photoDraft.zoom }] },
+                  ]}
+                />
+              ) : (
+                <View style={styles.photoPlaceholder}><Text style={styles.body}>Foto</Text></View>
+              )}
+              <Text style={styles.body}>Anteprima foto selezionata · zoom {photoDraft.zoom.toFixed(1)}</Text>
+              <View style={styles.buttonRow}>
+                <Button onPress={() => onPhotoTransform({ zoom: Math.max(0.5, photoDraft.zoom - 0.1) })}>Riduci</Button>
+                <Button onPress={() => onPhotoTransform({ zoom: Math.min(3, photoDraft.zoom + 0.1) })}>Zoom</Button>
+                <Button onPress={() => onPhotoTransform({ offsetX: photoDraft.offsetX - 4 })}>Sinistra</Button>
+                <Button onPress={() => onPhotoTransform({ offsetX: photoDraft.offsetX + 4 })}>Destra</Button>
+                <Button onPress={() => onPhotoTransform({ offsetY: photoDraft.offsetY - 4 })}>Su</Button>
+                <Button onPress={() => onPhotoTransform({ offsetY: photoDraft.offsetY + 4 })}>Giù</Button>
+              </View>
+              <View style={styles.buttonRow}>
+                <Button onPress={handleConfirm}>Conferma foto</Button>
+                <Button onPress={handleCancel}>Annulla</Button>
+              </View>
+            </View>
+          ) : null}
+          {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
         </View>
-      ) : null}
-      {photoError ? <Text style={styles.errorText}>{photoError}</Text> : null}
+      </BottomSheet>
     </View>
   );
 }
@@ -341,7 +360,8 @@ const styles = StyleSheet.create({
   name: { color: colors.foreground, fontSize: 16, fontWeight: "700" },
   notice: { backgroundColor: "#fffbeb", borderColor: "#fcd34d", borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
   photo: { backgroundColor: colors.muted, borderRadius: radii.md, height: 96, width: 80 },
-  photoControls: { borderColor: colors.border, borderRadius: radii.lg, borderStyle: "dashed", borderWidth: 1, gap: spacing.sm, padding: spacing.md },
+  photoControls: { gap: spacing.md },
+  photoControlsCompact: { borderColor: colors.border, borderRadius: radii.lg, borderStyle: "dashed", borderWidth: 1, gap: spacing.sm, padding: spacing.md },
   photoControlsHeader: { gap: spacing.xs },
   photoPlaceholder: { alignItems: "center", backgroundColor: colors.muted, borderRadius: radii.md, height: 96, justifyContent: "center", width: 80 },
   previewBox: { alignItems: "center", backgroundColor: colors.muted, borderRadius: radii.lg, gap: spacing.sm, overflow: "hidden", padding: spacing.md },
@@ -352,7 +372,6 @@ const styles = StyleSheet.create({
   screen: { gap: spacing.lg, padding: spacing.xl },
   section: { gap: spacing.md },
   statusPill: { alignSelf: "flex-start", backgroundColor: colors.muted, borderRadius: radii.lg, color: colors.foreground, fontSize: 14, fontWeight: "600", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  stepTabs: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   successBox: { backgroundColor: "#dcfce7", borderRadius: radii.lg, color: "#14532d", padding: spacing.md },
   suspended: { backgroundColor: "#fee2e2", opacity: 0.8 },
   title: { color: colors.foreground, fontSize: 28, fontWeight: "700" },

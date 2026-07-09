@@ -2,6 +2,7 @@ import { getApiBaseUrl } from "./api-base-url";
 import { managerTeamConfig, getCurrentManagerTeam } from "./manager-team";
 import { applyManagerPhotoOverrides } from "./manager-photo-store";
 import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
+import { resolveRenderablePhotoUrl } from "./photo-url";
 import {
   isSessionExpired,
   removeStoredSession,
@@ -42,6 +43,8 @@ export interface ApiPhoto {
   id: string;
   playerId?: string;
   status?: string;
+  staffMemberId?: string | null;
+  staff_member_id?: string | null;
   storagePath?: string;
 }
 
@@ -96,41 +99,62 @@ function toManagerStatusNotification(status: ApiMatchSheet["status"]): string {
 }
 
 export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
-  const players = await request<readonly Record<string, unknown>[]>("/players");
+  const [players, photos] = await Promise.all([
+    request<readonly Record<string, unknown>[]>("/players"),
+    fetchPhotos().catch(() => [] as readonly ApiPhoto[]),
+  ]);
   const managerTeam = getCurrentManagerTeam();
   const pilotRoster = managerTeam === "away" ? pilotAwayPlayers : pilotPlayers;
-  if (players.length === 0) return applyManagerPhotoOverrides(managerTeam, pilotRoster);
+  if (players.length === 0) return applyManagerPhotoOverrides(managerTeam, withPhotoMetadata(pilotRoster, photos, "player"));
   return applyManagerPhotoOverrides(managerTeam, players.map((player) => ({
     id: String(player.id),
     firstName: String(player.firstName ?? player.first_name ?? ""),
     lastName: String(player.lastName ?? player.last_name ?? ""),
-    photoUrl: String(player.photoUrl ?? player.photo_url ?? "/placeholder-player.svg"),
-	    warning: Boolean(player.warning ?? false),
-	    suspended: Boolean(player.suspended ?? false),
-	    selected: false,
-	    shirtNumber: null,
-	    role: "starter",
-	    isGoalkeeper: false,
-	    isCaptain: false,
-	    isViceCaptain: false,
-	  })));
+    photoUrl: resolveSubjectPhotoUrl(photos, String(player.id), "player", String(player.photoUrl ?? player.photo_url ?? "/placeholder-player.svg")),
+    warning: Boolean(player.warning ?? false),
+    suspended: Boolean(player.suspended ?? false),
+    selected: false,
+    shirtNumber: null,
+    role: "starter",
+    isGoalkeeper: false,
+    isCaptain: false,
+    isViceCaptain: false,
+  })));
 }
 
 export async function fetchStaff(): Promise<readonly StaffListItem[]> {
-  const staff =
-    await request<readonly Record<string, unknown>[]>("/staff-members");
+  const [staff, photos] = await Promise.all([
+    request<readonly Record<string, unknown>[]>("/staff-members"),
+    fetchPhotos().catch(() => [] as readonly ApiPhoto[]),
+  ]);
   const managerTeam = getCurrentManagerTeam();
   const pilotRoster = managerTeam === "away" ? pilotAwayStaff : pilotStaff;
-  if (staff.length === 0) return applyManagerPhotoOverrides(managerTeam, pilotRoster);
+  if (staff.length === 0) return applyManagerPhotoOverrides(managerTeam, withPhotoMetadata(pilotRoster, photos, "staff"));
   return applyManagerPhotoOverrides(managerTeam, staff.map((staffMember) => ({
     id: String(staffMember.id),
     fullName: String(
       staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
     ),
     role: String(staffMember.role ?? "staff"),
-    photoUrl: staffMember.photoUrl ? String(staffMember.photoUrl) : null,
+    photoUrl: resolveSubjectPhotoUrl(photos, String(staffMember.id), "staff", staffMember.photoUrl ? String(staffMember.photoUrl) : null),
     selected: false,
   })));
+}
+
+function withPhotoMetadata<TSubject extends { id: string; photoUrl: string | null }>(subjects: readonly TSubject[], photos: readonly ApiPhoto[], kind: "player" | "staff"): readonly TSubject[] {
+  return subjects.map((subject) => ({
+    ...subject,
+    photoUrl: resolveSubjectPhotoUrl(photos, subject.id, kind, subject.photoUrl),
+  }));
+}
+
+function resolveSubjectPhotoUrl(photos: readonly ApiPhoto[], subjectId: string, kind: "player" | "staff", fallback: string | null): string | null {
+  const metadataPhoto = photos.find((photo) => {
+    if (photo.status === "archived" || photo.status === "rejected") return false;
+    const ownerId = kind === "player" ? photo.playerId : photo.staffMemberId ?? photo.staff_member_id;
+    return ownerId === subjectId;
+  });
+  return resolveRenderablePhotoUrl(metadataPhoto?.storagePath ?? fallback);
 }
 
 export function fetchMatches(query = ""): Promise<readonly ApiMatch[]> {
