@@ -105,8 +105,17 @@ declare module "@testing-library/react-native" {
 declare const describe: (name: string, fn: () => void) => void;
 declare const it: (name: string, fn: () => void | Promise<void>) => void;
 declare const expect: (value: unknown) => { toBe: (expected: unknown) => void; toBeTruthy: () => void; toHaveBeenCalledTimes: (count: number) => void };
-declare const jest: { fn: () => ((...args: unknown[]) => unknown) & { mock: unknown } };
+declare const jest: { fn: (implementation?: (...args: unknown[]) => unknown) => ((...args: unknown[]) => unknown) & { mock: unknown }; mock: (moduleName: string, factory?: () => unknown, options?: { virtual?: boolean }) => void };
 
 declare const process: { env: Record<string, string | undefined> };
 declare const afterEach: (fn: () => void) => void;
 declare module "@testing-library/react-native/extend-expect" {}
+
+
+declare module "expo-image-picker" {
+  export const MediaTypeOptions: { Images: unknown };
+  export function requestCameraPermissionsAsync(): Promise<{ granted?: boolean }>;
+  export function requestMediaLibraryPermissionsAsync(): Promise<{ granted?: boolean }>;
+  export function launchCameraAsync(options: Record<string, unknown>): Promise<{ canceled?: boolean; assets?: readonly Record<string, unknown>[] | null }>;
+  export function launchImageLibraryAsync(options: Record<string, unknown>): Promise<{ canceled?: boolean; assets?: readonly Record<string, unknown>[] | null }>;
+}
