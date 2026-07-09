@@ -1,5 +1,11 @@
 # RefCheckID — Feature Parity Progress
 
+> La Feature Parity funzionale rispetto alla Source of Truth Web è stata raggiunta.
+>
+> Resta in corso una fase separata di **Mobile UX Hardening** finalizzata a trasformare il porting funzionale in una vera applicazione mobile.
+>
+> Le attività di questa fase non modificano API, validazioni o workflow funzionali, ma esclusivamente esperienza d'uso, layout, accessibilità e adattamento Mobile-first.
+
 ## Stato generale del progetto
 
 - Binario: **B — Mobile Feature Parity**
