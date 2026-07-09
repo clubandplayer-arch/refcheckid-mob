@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MobileTabs } from "@/components/ui/mobile-tabs";
 import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { useToast } from "@/components/ui/toast";
@@ -54,30 +55,7 @@ export function RefereeMatchWorkflow() {
 
   return (
     <View style={styles.workflow}>
-      <View style={styles.stepper}>
-        {steps.map((label, index) => {
-          const isRecognitionStepDisabled = recognitionClosed && index < 2;
-          return (
-            <Pressable
-              accessibilityRole="button"
-              disabled={isRecognitionStepDisabled}
-              key={label}
-              onPress={() => {
-                if (!isRecognitionStepDisabled) setStep(index);
-              }}
-              style={[
-                styles.stepButton,
-                step === index ? styles.stepButtonActive : null,
-                isRecognitionStepDisabled ? styles.stepButtonDisabled : null,
-              ]}
-            >
-              <Text style={[styles.stepText, step === index ? styles.stepTextActive : null]}>
-                {index + 1}. {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <RefereeWorkflowStepper currentStep={step} recognitionClosed={recognitionClosed} onChangeStep={setStep} />
 
       {step === 0 ? (
         <SheetVerificationStep
@@ -101,8 +79,39 @@ export function RefereeMatchWorkflow() {
         />
       ) : null}
       {step === 2 ? (
-<MatchReportStep fullRecognitionComplete={fullRecognitionComplete} matchId={matchId} />
+        <MatchReportStep fullRecognitionComplete={fullRecognitionComplete} matchId={matchId} />
       ) : null}
+      <RefereeWorkflowStepper currentStep={step} recognitionClosed={recognitionClosed} onChangeStep={setStep} />
+    </View>
+  );
+}
+
+function RefereeWorkflowStepper({ currentStep, onChangeStep, recognitionClosed }: Readonly<{ currentStep: number; onChangeStep: (step: number) => void; recognitionClosed: boolean }>) {
+  return (
+    <View style={styles.stepper}>
+      {steps.map((label, index) => {
+        const isRecognitionStepDisabled = recognitionClosed && index < 2;
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isRecognitionStepDisabled, selected: currentStep === index }}
+            disabled={isRecognitionStepDisabled}
+            key={label}
+            onPress={() => {
+              if (!isRecognitionStepDisabled) onChangeStep(index);
+            }}
+            style={[
+              styles.stepButton,
+              currentStep === index ? styles.stepButtonActive : null,
+              isRecognitionStepDisabled ? styles.stepButtonDisabled : null,
+            ]}
+          >
+            <Text style={[styles.stepText, currentStep === index ? styles.stepTextActive : null]}>
+              {index + 1}. {label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -223,9 +232,19 @@ function RecognitionStep({
     ? allSubjects.filter((subject) => subject.teamName === activeTeamName)
     : allSubjects;
   const currentSubject = selectedTeamSubjects.find((subject) => !decisions[subject.id]) ?? null;
-  const completedCount = Object.keys(decisions).length;
-  const pendingCount = Math.max(allSubjects.length - completedCount, 0);
-  const fullRecognitionComplete = allSubjects.length > 0 && pendingCount === 0;
+  const selectedTeamCompletedCount = selectedTeamSubjects.filter((subject) => decisions[subject.id]).length;
+  const selectedTeamTotal = selectedTeamSubjects.length;
+  const currentTeamDecisionOrder = decisionOrder.filter((subjectId) => {
+    const subject = allSubjects.find((item) => item.id === subjectId);
+    return subject?.teamName === activeTeamName;
+  });
+  const completedCount = decisionOrder.length;
+  const recognizedSubjects = allSubjects.filter((subject) => decisions[subject.id]);
+  const recognizedTeams = new Set(recognizedSubjects.map((subject) => subject.teamName));
+  const hasHomeRecognition = teamNames[0] ? recognizedTeams.has(teamNames[0]) : false;
+  const hasAwayRecognition = teamNames[1] ? recognizedTeams.has(teamNames[1]) : false;
+  const fullRecognitionComplete =
+    completedCount === allSubjects.length && hasHomeRecognition && hasAwayRecognition;
   const teamRecognitionSummaries = teamNames.map((teamName) => {
     const teamSubjects = allSubjects.filter((subject) => subject.teamName === teamName);
     const completed = teamSubjects.filter((subject) => decisions[subject.id]).length;
@@ -261,7 +280,7 @@ function RecognitionStep({
   }
 
   function goBackToPreviousSubject() {
-    const previousSubjectId = decisionOrder.at(-1);
+    const previousSubjectId = currentTeamDecisionOrder.at(-1);
     if (!previousSubjectId) return;
     const previousSubject = allSubjects.find((subject) => subject.id === previousSubjectId);
     setDecisions((current) => {
@@ -278,7 +297,7 @@ function RecognitionStep({
     return (
       <Card style={[styles.cardGap, styles.centeredCard]}>
         <Text style={styles.heading}>{fullRecognitionComplete ? "Riconoscimento completato" : "Seleziona la prossima squadra"}</Text>
-        <Text style={styles.body}>{completedCount} tesserati verificati. Pending: {pendingCount}.</Text>
+        <Text style={styles.body}>{completedCount} tesserati verificati. Ogni squadra va chiusa separatamente.</Text>
         <View style={styles.sheetGrid}>
           {teamRecognitionSummaries.map((summary) => (
             <View key={summary.teamName} style={[styles.teamSummary, summary.isComplete ? styles.teamSummaryComplete : styles.teamSummaryPending]}>
@@ -303,7 +322,7 @@ function RecognitionStep({
             {isRecognitionClosed ? "Riconoscimento chiuso" : "Conferma chiusura riconoscimento"}
           </Button>
         ) : (
-          <Text style={styles.pendingAlert}>Completa tutti i tesserati prima di chiudere il riconoscimento.</Text>
+          <Text style={styles.pendingAlert}>Completa le squadre evidenziate in arancione prima di chiudere il riconoscimento.</Text>
         )}
       </Card>
     );
@@ -314,9 +333,9 @@ function RecognitionStep({
       <View style={styles.sheetHeader}>
         <View style={styles.sheetTitleBlock}>
           <Text style={styles.heading}>Riconoscimento</Text>
-          <Text style={styles.body}>Controlla foto, dati e documento. Approva o rifiuta ogni tesserato.</Text>
+          <Text style={styles.body}>Controlla foto, dati e documento. Conferma il tesserato o torna indietro per rivedere.</Text>
         </View>
-        <Text style={styles.progressPill}>Pending {pendingCount}</Text>
+        <Text style={styles.progressPill}>{selectedTeamCompletedCount}/{selectedTeamTotal}</Text>
       </View>
       <View style={styles.photoFrame}>
         {currentSubject.photoUrl ? (
@@ -337,15 +356,13 @@ function RecognitionStep({
           <View style={styles.detailList}>
             <DetailRow label="Tipo" value={currentSubject.document.type} />
             <DetailRow label="Numero" value={currentSubject.document.number} />
-            <DetailRow label="Scadenza" value={new Date(currentSubject.document.expiresAt).toLocaleDateString("it-IT")} />
           </View>
         ) : (
           <Text style={styles.body}>Tocca per aprire i dati documento.</Text>
         )}
       </Pressable>
       <View style={styles.actionGrid}>
-        <Button disabled={decisionOrder.length === 0} onPress={goBackToPreviousSubject}>Indietro</Button>
-        <Button variant="danger" onPress={() => decide(currentSubject, "rejected")}>Rifiuta</Button>
+        <Button disabled={currentTeamDecisionOrder.length === 0} onPress={goBackToPreviousSubject}>Indietro</Button>
         <Button onPress={() => decide(currentSubject, "approved")}>Conferma riconoscimento</Button>
       </View>
     </Card>
@@ -367,6 +384,7 @@ function TeamSheetCard({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
       onPress={onSelect}
       style={[styles.sheetCard, isSelected ? styles.sheetCardSelected : null]}
     >
@@ -401,6 +419,7 @@ function DetailRow({ label, value }: Readonly<{ label: string; value: string }>)
 
 
 const reportSteps = ["Risultato", "Gol", "Ammonizioni", "Espulsioni", "Sostituzioni", "Note", "Riepilogo"] as const;
+const reportStepTabs = reportSteps.map((label, index) => ({ key: String(index), label }));
 
 function MatchReportStep({ fullRecognitionComplete, matchId }: Readonly<{ fullRecognitionComplete: boolean; matchId: string }>) {
   const toast = useToast();
@@ -432,7 +451,8 @@ function MatchReportStep({ fullRecognitionComplete, matchId }: Readonly<{ fullRe
   return (
     <Card style={styles.cardGap}>
       <View style={styles.cardGapSmall}><Text style={styles.heading}>Referto</Text><Text style={styles.body}>Risultato, eventi disciplinari, sostituzioni, note e invio.</Text></View>
-      <View style={styles.reportTabs}>{reportSteps.map((label, index) => <Pressable accessibilityRole="button" key={label} onPress={() => setStep(index)} style={[styles.stepButton, step === index ? styles.stepButtonActive : null]}><Text style={[styles.stepText, step === index ? styles.stepTextActive : null]}>{label}</Text></Pressable>)}</View>
+      <ReportQuickSummary blockingErrors={blockingErrors} onOpenSummary={() => setStep(reportSteps.length - 1)} report={currentReport} />
+      <MobileTabs accessibilityLabel="Sezioni referto" items={reportStepTabs} onChange={(key) => setStep(Number(key))} value={String(step)} />
       {currentStep === "Risultato" ? <ResultPanel readOnly={isReadOnly} report={currentReport} setReport={setReport} /> : null}
       {currentStep === "Gol" ? <EventsPanel eventKey="goals" readOnly={isReadOnly} recognitionSubjects={subjectsQuery.data ?? []} report={currentReport} setReport={setReport} title="Gol" /> : null}
       {currentStep === "Ammonizioni" ? <EventsPanel eventKey="cautions" readOnly={isReadOnly} recognitionSubjects={subjectsQuery.data ?? []} report={currentReport} setReport={setReport} title="Ammonizioni" /> : null}
@@ -465,7 +485,7 @@ function EventsPanel({ eventKey, readOnly, recognitionSubjects, report, setRepor
     if (("teamName" in patch || "incomingShirtNumber" in patch) && !("incomingPlayerName" in patch)) next.incomingPlayerName = resolveReportPlayerName(next.teamName, next.incomingShirtNumber);
     return next;
   }));
-  return <View style={styles.cardGapSmall}><View style={styles.reportHeader}><Text style={styles.subheading}>{title}</Text><Button disabled={readOnly || goalLimitReached} onPress={addEvent}>Aggiungi</Button></View>{eventKey === "goals" ? <View style={styles.twoColumn}><Text style={styles.infoBox}>Gol casa inseriti {counts.home}/{report.homeGoals}</Text><Text style={styles.infoBox}>Gol ospite inseriti {counts.away}/{report.awayGoals}</Text></View> : null}{events.length === 0 ? <Text style={styles.emptyInline}>Nessun evento inserito.</Text> : events.map((event, index) => <View key={event.id} style={styles.eventCard}><NumberField label="Minuto" readOnly={readOnly} value={event.minute} onChange={(minute) => updateEvent(event.id, { minute })} /><ChoiceField label="Squadra" readOnly={readOnly} options={reportTeams} value={event.teamName} onChange={(teamName) => updateEvent(event.id, eventKey === "substitutions" ? { incomingPlayerName: "", incomingShirtNumber: null, outgoingPlayerName: "", outgoingShirtNumber: null, teamName } : { playerName: "", shirtNumber: null, teamName })} />{eventKey === "substitutions" ? <SubstitutionFields event={event} onChange={(patch) => updateEvent(event.id, patch)} readOnly={readOnly} recognitionSubjects={recognitionSubjects} /> : <PlayerFields event={event} eventKey={eventKey} onChange={(patch) => updateEvent(event.id, patch)} readOnly={readOnly} recognitionSubjects={recognitionSubjects} />}{event.minute < (events[index - 1]?.minute ?? 0) ? <Text style={styles.missingAlert}>Evento fuori ordine cronologico.</Text> : null}<Button disabled={readOnly} variant="danger" onPress={() => setEvents(events.filter((item) => item.id !== event.id))}>Rimuovi</Button></View>)}</View>;
+  return <View style={styles.cardGapSmall}><View style={styles.reportHeader}><View><Text style={styles.subheading}>{title}</Text><Text style={styles.body}>{events.length} eventi inseriti</Text></View><Button disabled={readOnly || goalLimitReached} onPress={addEvent}>Aggiungi</Button></View>{eventKey === "goals" ? <View style={styles.twoColumn}><Text style={styles.infoBox}>Gol casa inseriti {counts.home}/{report.homeGoals}</Text><Text style={styles.infoBox}>Gol ospite inseriti {counts.away}/{report.awayGoals}</Text></View> : null}{events.length === 0 ? <Text style={styles.emptyInline}>Nessun evento inserito.</Text> : events.map((event, index) => <View key={event.id} style={styles.eventCard}><View style={styles.eventHeader}><Text style={styles.subheading}>Evento {index + 1}</Text><Button disabled={readOnly} variant="danger" onPress={() => setEvents(events.filter((item) => item.id !== event.id))}>Rimuovi</Button></View><NumberField label="Minuto" readOnly={readOnly} value={event.minute} onChange={(minute) => updateEvent(event.id, { minute })} /><ChoiceField label="Squadra" readOnly={readOnly} options={reportTeams} value={event.teamName} onChange={(teamName) => updateEvent(event.id, eventKey === "substitutions" ? { incomingPlayerName: "", incomingShirtNumber: null, outgoingPlayerName: "", outgoingShirtNumber: null, teamName } : { playerName: "", shirtNumber: null, teamName })} />{eventKey === "substitutions" ? <SubstitutionFields event={event} onChange={(patch) => updateEvent(event.id, patch)} readOnly={readOnly} recognitionSubjects={recognitionSubjects} /> : <PlayerFields event={event} eventKey={eventKey} onChange={(patch) => updateEvent(event.id, patch)} readOnly={readOnly} recognitionSubjects={recognitionSubjects} />}{event.minute < (events[index - 1]?.minute ?? 0) ? <Text style={styles.missingAlert}>Evento fuori ordine cronologico.</Text> : null}</View>)}</View>;
 }
 
 function PlayerFields({ event, eventKey, onChange, readOnly, recognitionSubjects }: Readonly<{ event: MatchReportEvent; eventKey: Exclude<ReportEventKey, "substitutions">; onChange: (patch: Partial<MatchReportEvent>) => void; readOnly: boolean; recognitionSubjects: readonly RecognitionSubject[] }>) {
@@ -481,16 +501,21 @@ function SubstitutionFields({ event, onChange, readOnly, recognitionSubjects }: 
   return <><ChoiceField label="Uscente" readOnly={readOnly} options={shirtOptions} value={event.outgoingShirtNumber ? String(event.outgoingShirtNumber) : ""} onChange={(value) => onChange({ outgoingPlayerName: nameFor(value), outgoingShirtNumber: Number(value) || null })} /><ChoiceField label="Entrante" readOnly={readOnly} options={shirtOptions} value={event.incomingShirtNumber ? String(event.incomingShirtNumber) : ""} onChange={(value) => onChange({ incomingPlayerName: nameFor(value), incomingShirtNumber: Number(value) || null })} /></>;
 }
 
+function ReportQuickSummary({ blockingErrors, onOpenSummary, report }: Readonly<{ blockingErrors: readonly string[]; onOpenSummary: () => void; report: MatchReportDraft }>) {
+  const totalEvents = report.goals.length + report.cautions.length + report.expulsions.length + report.substitutions.length;
+  return <Pressable accessibilityRole="button" onPress={onOpenSummary} style={styles.quickSummary}><View><Text style={styles.fieldLabel}>Riepilogo referto</Text><Text style={styles.body}>{report.homeGoals}-{report.awayGoals} · {totalEvents} eventi · {blockingErrors.length} errori</Text></View><Text style={blockingErrors.length ? styles.errorTitle : styles.completeText}>{blockingErrors.length ? "Da correggere" : "Pronto"}</Text></Pressable>;
+}
+
 function SummaryPanel({ blockingErrors, isReadOnly, isPending, onSubmit, report }: Readonly<{ blockingErrors: readonly string[]; isReadOnly: boolean; isPending: boolean; onSubmit: () => void; report: MatchReportDraft }>) {
   return <View style={styles.cardGapSmall}>{blockingErrors.length === 0 ? <Text style={styles.completePill}>Riepilogo pronto per l’invio.</Text> : <View style={styles.errorBox}><Text style={styles.errorTitle}>Referto non valido.</Text>{blockingErrors.map((error) => <Text key={error} style={styles.errorText}>• {error}</Text>)}</View>}<DetailRow label="Gol registrati" value={String(report.goals.length)} /><DetailRow label="Ammonizioni" value={String(report.cautions.length)} /><DetailRow label="Espulsioni" value={String(report.expulsions.length)} /><DetailRow label="Sostituzioni" value={String(report.substitutions.length)} /><Button disabled={isReadOnly || blockingErrors.length > 0 || isPending} onPress={onSubmit}>Invia referto</Button></View>;
 }
 
 function NumberField({ label, onChange, readOnly, value }: Readonly<{ label: string; onChange: (value: number) => void; readOnly: boolean; value: number }>) {
-  return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><Input editable={!readOnly} keyboardType="number-pad" onChangeText={(text: string) => onChange(Number(text) || 0)} value={String(value)} /></View>;
+  return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><Input editable={!readOnly} keyboardType="number-pad" onChangeText={(text: string) => onChange(Number(text) || 0)} style={styles.numberInput} value={String(value)} /></View>;
 }
 
 function ChoiceField<T extends string>({ label, onChange, options, readOnly, value }: Readonly<{ label: string; onChange: (value: T) => void; options: readonly T[]; readOnly: boolean; value: string }>) {
-  return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><View style={styles.choiceWrap}>{options.map((option) => <Pressable accessibilityRole="button" disabled={readOnly} key={option} onPress={() => onChange(option)} style={[styles.choiceButton, value === option ? styles.choiceButtonActive : null]}><Text style={[styles.choiceText, value === option ? styles.choiceTextActive : null]}>{option}</Text></Pressable>)}</View></View>;
+  return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}>{options.map((option) => <Pressable accessibilityRole="button" accessibilityState={{ disabled: readOnly, selected: value === option }} disabled={readOnly} key={option} onPress={() => onChange(option)} style={[styles.choiceButton, value === option ? styles.choiceButtonActive : null]}><Text style={[styles.choiceText, value === option ? styles.choiceTextActive : null]}>{option}</Text></Pressable>)}</ScrollView></View>;
 }
 
 function playerOptions(teamName: string, subjects: readonly RecognitionSubject[]) {
@@ -509,7 +534,7 @@ const statusStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   actionGrid: { gap: spacing.sm },
-  choiceButton: { backgroundColor: colors.muted, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  choiceButton: { backgroundColor: colors.muted, borderRadius: radii.md, marginRight: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   choiceButtonActive: { backgroundColor: colors.primary },
   choiceText: { color: colors.foreground, fontSize: 13, fontWeight: "600" },
   choiceTextActive: { color: colors.white },
@@ -518,7 +543,8 @@ const styles = StyleSheet.create({
   errorBox: { backgroundColor: colors.dangerBackground, borderRadius: radii.lg, gap: spacing.xs, padding: spacing.md },
   errorText: { color: colors.dangerText, fontSize: 13 },
   errorTitle: { color: colors.dangerText, fontSize: 14, fontWeight: "700" },
-  eventCard: { borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, gap: spacing.sm, padding: spacing.md },
+  eventCard: { borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, gap: spacing.md, padding: spacing.md },
+  eventHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   field: { gap: spacing.xs },
   fieldLabel: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
   body: { color: colors.mutedForeground, fontSize: 14, lineHeight: 20 },
@@ -526,6 +552,7 @@ const styles = StyleSheet.create({
   cardGap: { gap: spacing.lg },
   cardGapSmall: { gap: spacing.sm },
   completePill: { backgroundColor: colors.success, borderRadius: radii.lg, color: colors.white, fontSize: 14, fontWeight: "700", marginTop: spacing.sm, padding: spacing.sm, textAlign: "center" },
+  completeText: { color: colors.successText, fontSize: 13, fontWeight: "800" },
   detailLabel: { color: colors.mutedForeground, fontSize: 14 },
   detailList: { gap: spacing.sm, marginTop: spacing.md },
   detailRow: { flexDirection: "row", justifyContent: "space-between" },
@@ -534,13 +561,15 @@ const styles = StyleSheet.create({
   heading: { color: colors.foreground, fontSize: 20, fontWeight: "700" },
   infoBox: { backgroundColor: colors.infoBackground, borderRadius: radii.lg, color: colors.infoText, fontSize: 14, padding: spacing.md },
   missingAlert: { backgroundColor: colors.dangerBackground, borderRadius: radii.lg, color: colors.dangerText, fontSize: 14, fontWeight: "600", padding: spacing.md },
-  notesInput: { minHeight: 120, textAlignVertical: "top" },
+  notesInput: { minHeight: 160, textAlignVertical: "top" },
+  numberInput: { fontSize: 22, fontWeight: "800", minHeight: 56, textAlign: "center" },
   pendingAlert: { backgroundColor: colors.warningBackground, borderRadius: radii.lg, color: colors.warningText, fontSize: 14, fontWeight: "600", padding: spacing.md },
   photoFrame: { alignItems: "center", alignSelf: "center", aspectRatio: 3 / 4, backgroundColor: colors.white, borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, justifyContent: "center", maxWidth: 260, overflow: "hidden", width: "100%" },
   photoPlaceholder: { color: colors.mutedForeground, fontSize: 16, fontWeight: "600", textAlign: "center" },
   reportHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   reportTabs: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   progressPill: { backgroundColor: colors.muted, borderRadius: 999, color: colors.foreground, fontSize: 13, fontWeight: "700", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  quickSummary: { alignItems: "center", backgroundColor: colors.muted, borderRadius: radii.lg, flexDirection: "row", justifyContent: "space-between", padding: spacing.md },
   selectedPill: { backgroundColor: colors.primary, borderRadius: 999, color: colors.white, fontSize: 12, fontWeight: "700", paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   sheetCard: { borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, padding: spacing.lg },
   sheetCardSelected: { borderColor: colors.primary, borderWidth: 2 },

@@ -1,18 +1,23 @@
 import { useMemo, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { AuthGate } from "@/components/auth/auth-gate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ImagePreview } from "@/components/ui/image-preview";
+import { MobileScreen } from "@/components/ui/mobile-screen";
+import { MobileTabs } from "@/components/ui/mobile-tabs";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { useToast } from "@/components/ui/toast";
 import { fetchFederationDashboard, fetchFederationHistory, fetchFederationMatches, fetchFederationReports, fetchPhotoRequests } from "@/lib/federation-api-client";
 import { decideManagerPhotoApprovalRequest } from "@/lib/manager-photo-store";
 import type { FederationHistoryItem, FederationMatchListItem, FederationReport, FederationReportEvent, FederationReportStatus, PhotoRequest, PhotoRequestStatus } from "@/lib/federation-types";
+import { resolveRenderablePhotoUrl } from "@/lib/photo-url";
 import { queryKeys, useApiQuery } from "@/lib/query";
 import { useQueryClient } from "@tanstack/react-query";
 import { colors, radii, spacing } from "@/lib/theme";
 
 const sections = ["Cruscotto", "Calendario", "Referti", "Foto", "Storico"] as const;
+const sectionTabs = sections.map((label, index) => ({ key: String(index), label }));
 const reportStatuses: readonly ("all" | FederationReportStatus)[] = ["all", "missing", "draft", "submitted", "reviewed"];
 
 export default function FederationPage() {
@@ -20,29 +25,28 @@ export default function FederationPage() {
 
   return (
     <AuthGate allowedRole="federation">
-      <View style={styles.screen}>
+      <MobileScreen
+        contentStyle={styles.screen}
+        edges={["left", "right"]}
+        stickyHeader={
+          <MobileTabs
+            accessibilityLabel="Sezioni Federazione"
+            items={sectionTabs}
+            onChange={(key) => setSection(Number(key))}
+            value={String(section)}
+          />
+        }
+      >
         <View style={styles.header}>
           <Text style={styles.kicker}>Area Federazione</Text>
           <Text style={styles.title}>Cruscotto operativo</Text>
-        </View>
-        <View style={styles.sectionTabs}>
-          {sections.map((label, index) => (
-            <Pressable
-              accessibilityRole="button"
-              key={label}
-              onPress={() => setSection(index)}
-              style={[styles.sectionButton, section === index ? styles.sectionButtonActive : null]}
-            >
-              <Text style={[styles.sectionText, section === index ? styles.sectionTextActive : null]}>{label}</Text>
-            </Pressable>
-          ))}
         </View>
         {section === 0 ? <FederationDashboardPanel /> : null}
         {section === 1 ? <MatchCalendarPanel /> : null}
         {section === 2 ? <ReportsPanel /> : null}
         {section === 3 ? <PhotoRequestsPanel /> : null}
         {section === 4 ? <HistoryPanel /> : null}
-      </View>
+      </MobileScreen>
     </AuthGate>
   );
 }
@@ -95,14 +99,14 @@ function MatchCalendarPanel() {
       </View>
       <View style={styles.filterGroup}>
         <Text style={styles.filterLabel}>Giornata</Text>
-        <View style={styles.choiceWrap}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRail}>
           <FilterChip active={matchday === "all"} label="Tutte" onPress={() => setMatchday("all")} />
           {days.map((day) => <View key={day}><FilterChip active={matchday === String(day)} label={`G${day}`} onPress={() => setMatchday(String(day))} /></View>)}
-        </View>
+        </ScrollView>
       </View>
       <View style={styles.filterGroup}>
         <Text style={styles.filterLabel}>Stato referto</Text>
-        <View style={styles.choiceWrap}>{reportStatuses.map((reportStatus) => <View key={reportStatus}><FilterChip active={status === reportStatus} label={formatStatusLabel(reportStatus)} onPress={() => setStatus(reportStatus)} /></View>)}</View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRail}>{reportStatuses.map((reportStatus) => <View key={reportStatus}><FilterChip active={status === reportStatus} label={formatStatusLabel(reportStatus)} onPress={() => setStatus(reportStatus)} /></View>)}</ScrollView>
       </View>
       <MatchList matches={filteredMatches} />
     </Card>
@@ -110,7 +114,7 @@ function MatchCalendarPanel() {
 }
 
 function FilterChip({ active, label, onPress }: Readonly<{ active: boolean; label: string; onPress: () => void }>) {
-  return <Pressable accessibilityRole="button" onPress={onPress} style={[styles.choiceButton, active ? styles.choiceButtonActive : null]}><Text style={[styles.choiceText, active ? styles.choiceTextActive : null]}>{label}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityState={{ selected: active }} onPress={onPress} style={[styles.choiceButton, active ? styles.choiceButtonActive : null]}><Text style={[styles.choiceText, active ? styles.choiceTextActive : null]}>{label}</Text></Pressable>;
 }
 
 function MatchList({ matches }: Readonly<{ matches: readonly FederationMatchListItem[] }>) {
@@ -126,20 +130,24 @@ function ReportsPanel() {
   if (query.isError) return <ErrorState message={query.error?.message ?? "Errore sconosciuto"} onRetry={() => void query.refetch()} />;
   const reports = query.data ?? [];
   const selectedReport = reports.find((report) => report.id === selectedReportId) ?? reports[0] ?? null;
-  return <View style={styles.cardGap}><Card style={styles.cardGapSmall}><Text style={styles.heading}>Referti ricevuti</Text><ReportList reports={reports} selectedReportId={selectedReportId} onSelect={setSelectedReportId} /></Card>{selectedReport ? <ReportDetail report={selectedReport} /> : <EmptyState message="Seleziona un referto." />}</View>;
+  return <View style={styles.cardGap}><Card style={styles.cardGapSmall}><View style={styles.panelHeader}><View style={styles.cardGapSmall}><Text style={styles.heading}>Referti ricevuti</Text><Text style={styles.body}>{reports.length} referti disponibili. Scorri orizzontalmente per cambiare selezione.</Text></View>{selectedReport ? <ReportSummary report={selectedReport} /> : null}</View><ReportList reports={reports} selectedReportId={selectedReport?.id ?? selectedReportId} onSelect={setSelectedReportId} /></Card>{selectedReport ? <ReportDetail report={selectedReport} /> : <EmptyState message="Seleziona un referto." />}</View>;
+}
+
+function ReportSummary({ report }: Readonly<{ report: FederationReport }>) {
+  return <View style={styles.summaryPill}><Text style={styles.summaryScore}>{report.result.homeGoals}-{report.result.awayGoals}</Text><Text style={styles.summaryText}>{formatSubmittedAt(report.submittedAt)}</Text></View>;
 }
 
 function ReportList({ reports, selectedReportId, onSelect }: Readonly<{ reports: readonly FederationReport[]; selectedReportId: string | null; onSelect: (id: string) => void }>) {
   if (reports.length === 0) return <EmptyState message="Nessun referto ricevuto." />;
-  return <View style={styles.cardGapSmall}>{reports.map((report) => <Pressable accessibilityRole="button" key={report.id} onPress={() => onSelect(report.id)} style={[styles.listButton, selectedReportId === report.id ? styles.listButtonActive : null]}><Text style={styles.matchTitle}>{report.homeTeam} - {report.awayTeam}</Text><Text style={styles.body}>{report.refereeName} · {formatSubmittedAt(report.submittedAt)}</Text></Pressable>)}</View>;
+  return <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroller}>{reports.map((report) => <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedReportId === report.id }} key={report.id} onPress={() => onSelect(report.id)} style={[styles.reportChip, selectedReportId === report.id ? styles.listButtonActive : null]}><Text style={styles.matchTitle}>{report.homeTeam} - {report.awayTeam}</Text><Text style={styles.body}>{report.refereeName}</Text></Pressable>)}</ScrollView>;
 }
 
 function ReportDetail({ report }: Readonly<{ report: FederationReport }>) {
-  return <Card style={styles.cardGap}><View style={styles.detailHeader}><View style={styles.cardGapSmall}><Text style={styles.kicker}>Dettaglio referto in sola lettura</Text><Text style={styles.heading}>{report.homeTeam} - {report.awayTeam}</Text><Text style={styles.body}>Arbitro: {report.refereeName}</Text><Text style={styles.body}>Invio: {formatSubmittedAt(report.submittedAt)}</Text></View><Text style={styles.scoreBadge}>{report.result.homeGoals}-{report.result.awayGoals}</Text></View><ReportEvents title="Gol" events={report.goals} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /><ReportEvents title="Ammonizioni" events={report.cautions} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /><ReportEvents title="Espulsioni" events={report.expulsions} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /><ReportEvents title="Sostituzioni" events={report.substitutions} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /><ReadOnlyNotes title="Note arbitro" value={report.refereeNotes} />{report.commissionerNotes ? <ReadOnlyNotes title="Note commissario" value={report.commissionerNotes} /> : null}</Card>;
+  return <Card style={styles.cardGap}><View style={styles.detailHeader}><View style={styles.cardGapSmall}><Text style={styles.kicker}>Dettaglio referto in sola lettura</Text><Text style={styles.heading}>{report.homeTeam} - {report.awayTeam}</Text><Text style={styles.body}>Arbitro: {report.refereeName}</Text><Text style={styles.body}>Invio: {formatSubmittedAt(report.submittedAt)}</Text></View><Text style={styles.scoreBadge}>{report.result.homeGoals}-{report.result.awayGoals}</Text></View><CollapsibleSection defaultExpanded title={`Gol (${report.goals.length})`}><ReportEvents events={report.goals} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /></CollapsibleSection><CollapsibleSection title={`Ammonizioni (${report.cautions.length})`}><ReportEvents events={report.cautions} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /></CollapsibleSection><CollapsibleSection title={`Espulsioni (${report.expulsions.length})`}><ReportEvents events={report.expulsions} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /></CollapsibleSection><CollapsibleSection title={`Sostituzioni (${report.substitutions.length})`}><ReportEvents events={report.substitutions} homeTeam={report.homeTeam} awayTeam={report.awayTeam} /></CollapsibleSection><CollapsibleSection defaultExpanded title="Note"><ReadOnlyNotes title="Note arbitro" value={report.refereeNotes} />{report.commissionerNotes ? <ReadOnlyNotes title="Note commissario" value={report.commissionerNotes} /> : null}</CollapsibleSection></Card>;
 }
 
-function ReportEvents({ title, events, homeTeam, awayTeam }: Readonly<{ title: string; events: readonly FederationReportEvent[]; homeTeam: string; awayTeam: string }>) {
-  return <View style={styles.cardGapSmall}><Text style={styles.filterLabel}>{title}</Text>{events.length === 0 ? <Text style={styles.emptyInline}>Nessun evento.</Text> : null}{events.map((event) => <View key={event.id} style={styles.eventRow}><Text style={styles.matchday}>{event.minute}'</Text><Text style={styles.body}>{formatReportTeamName(event.teamName, homeTeam, awayTeam)}</Text><Text style={styles.body}>{event.playerName} · {event.detail}</Text></View>)}</View>;
+function ReportEvents({ events, homeTeam, awayTeam }: Readonly<{ events: readonly FederationReportEvent[]; homeTeam: string; awayTeam: string }>) {
+  return <View style={styles.cardGapSmall}>{events.length === 0 ? <Text style={styles.emptyInline}>Nessun evento.</Text> : null}{events.map((event) => <View key={event.id} style={styles.eventRow}><Text style={styles.matchday}>{event.minute}'</Text><Text style={styles.body}>{formatReportTeamName(event.teamName, homeTeam, awayTeam)}</Text><Text style={styles.body}>{event.playerName} · {event.detail}</Text></View>)}</View>;
 }
 
 function ReadOnlyNotes({ title, value }: Readonly<{ title: string; value: string }>) {
@@ -166,12 +174,14 @@ function PhotoRequestsPanel() {
 }
 
 function PhotoRequestCard({ request, transitionRequest }: Readonly<{ request: PhotoRequest; transitionRequest: (requestId: string, status: Exclude<PhotoRequestStatus, "pending">) => void }>) {
-  return <View style={styles.photoCard}><View style={styles.detailHeader}><View><Text style={styles.matchTitle}>{request.playerName}</Text><Text style={styles.body}>Tesserato</Text><Text style={styles.body}>{request.clubName}</Text></View><StatusBadge status={request.status} /></View><View style={styles.photoGrid}><PhotoBox label="Foto attuale" photoUrl={request.currentPhotoUrl} /><PhotoBox label="Nuova foto da approvare" photoUrl={request.proposedPhotoUrl} /></View>{request.status === "rejected" ? <Text style={styles.dangerNote}>Rifiuto comunicato al Club: resta valida la foto attuale e la Federazione può richiedere motivazione dell'upload e documenti afferenti l'identità del tesserato.</Text> : null}{request.status === "approved" ? <Text style={styles.successNote}>Foto approvata: la nuova immagine è subito disponibile al Club.</Text> : null}<View style={styles.buttonRow}><Button disabled={request.status !== "pending"} onPress={() => transitionRequest(request.id, "approved")}>Approva</Button><Button disabled={request.status !== "pending"} onPress={() => transitionRequest(request.id, "rejected")} variant="danger">Rifiuta</Button></View></View>;
+  return <View style={styles.photoCard}><View style={styles.photoCardHeader}><View style={styles.cardGapSmall}><Text style={styles.matchTitle}>{request.playerName}</Text><Text style={styles.body}>Tesserato · {request.clubName}</Text></View><StatusBadge status={request.status} /></View><View style={styles.photoGrid}><PhotoBox label="Foto attuale" photoUrl={request.currentPhotoUrl} /><PhotoBox label="Nuova foto da approvare" photoUrl={request.proposedPhotoUrl} /></View>{request.status === "rejected" ? <Text style={styles.dangerNote}>Rifiuto comunicato al Club: resta valida la foto attuale e la Federazione può richiedere motivazione dell'upload e documenti afferenti l'identità del tesserato.</Text> : null}{request.status === "approved" ? <Text style={styles.successNote}>Foto approvata: la nuova immagine è subito disponibile al Club.</Text> : null}<View style={styles.photoActions}><Button disabled={request.status !== "pending"} onPress={() => transitionRequest(request.id, "approved")}>Approva</Button><Button disabled={request.status !== "pending"} onPress={() => transitionRequest(request.id, "rejected")} variant="danger">Rifiuta</Button></View></View>;
 }
 
 function PhotoBox({ label, photoUrl }: Readonly<{ label: string; photoUrl: string | null }>) {
-  return <View style={styles.cardGapSmall}><Text style={styles.filterLabel}>{label}</Text><View style={styles.photoBox}>{photoUrl ? <Image source={{ uri: photoUrl }} style={styles.photoImage} /> : <Text style={styles.body}>Nessuna immagine</Text>}</View></View>;
+  const resolvedPhotoUrl = resolveRenderablePhotoUrl(photoUrl);
+  return <View style={styles.cardGapSmall}><Text style={styles.filterLabel}>{label}</Text><ImagePreview accessibilityLabel={label} placeholder="Nessuna immagine" style={styles.photoPreview} title={label} uri={resolvedPhotoUrl} />{resolvedPhotoUrl ? <Text style={styles.photoHint}>Tocca per ingrandire</Text> : null}</View>;
 }
+
 
 function HistoryPanel() {
   const historyQuery = useApiQuery(queryKeys.audit, fetchFederationHistory);
@@ -185,7 +195,7 @@ function HistoryPanel() {
   if (historyQuery.isLoading || reportsQuery.isLoading) return <SkeletonBlock />;
   if (historyQuery.isError) return <ErrorState message={historyQuery.error?.message ?? "Errore sconosciuto"} onRetry={() => void historyQuery.refetch()} />;
   if (reportsQuery.isError) return <ErrorState message={reportsQuery.error?.message ?? "Errore sconosciuto"} onRetry={() => void reportsQuery.refetch()} />;
-  return <Card style={styles.cardGap}><View style={styles.cardGapSmall}><Text style={styles.heading}>Storico</Text><Text style={styles.body}>Ricerca gara, società o arbitro e accedi a referto e audit sintetico.</Text></View><TextInput onChangeText={setQueryText} placeholder="Cerca gara, società o arbitro" style={styles.inputLike} value={queryText} />{filteredHistory.length === 0 ? <EmptyState message="Nessun elemento storico trovato." /> : null}{filteredHistory.map((item) => <View key={item.id}><HistoryCard item={item} onOpenReport={() => { setSelectedReportId(item.reportId); setSelectedAuditId(null); }} onOpenAudit={() => { setSelectedAuditId(item.id); setSelectedReportId(null); }} /></View>)}{selectedReport ? <ReportDetail report={selectedReport} /> : null}{selectedAuditItem ? <AuditSummaryPanel item={selectedAuditItem} /> : null}</Card>;
+  return <Card style={styles.cardGap}><View style={styles.cardGapSmall}><Text style={styles.heading}>Storico</Text><Text style={styles.body}>Ricerca gara, società o arbitro e apri solo il dettaglio necessario.</Text></View><View style={styles.searchBox}><TextInput onChangeText={setQueryText} placeholder="Cerca gara, società o arbitro" returnKeyType="search" style={styles.searchInput} value={queryText} />{queryText ? <Button onPress={() => setQueryText("")}>Pulisci</Button> : null}</View><Text style={styles.body}>{filteredHistory.length} risultati</Text>{filteredHistory.length === 0 ? <EmptyState message="Nessun elemento storico trovato." /> : null}<View style={styles.cardGapSmall}>{filteredHistory.map((item) => <View key={item.id}><HistoryCard item={item} onOpenReport={() => { setSelectedReportId(item.reportId); setSelectedAuditId(null); }} onOpenAudit={() => { setSelectedAuditId(item.id); setSelectedReportId(null); }} /></View>)}</View>{selectedReport ? <ReportDetail report={selectedReport} /> : null}{selectedAuditItem ? <AuditSummaryPanel item={selectedAuditItem} /> : null}</Card>;
 }
 
 function HistoryCard({ item, onOpenAudit, onOpenReport }: Readonly<{ item: FederationHistoryItem; onOpenAudit: () => void; onOpenReport: () => void }>) {
@@ -195,6 +205,11 @@ function HistoryCard({ item, onOpenAudit, onOpenReport }: Readonly<{ item: Feder
 function AuditSummaryPanel({ item }: Readonly<{ item: FederationHistoryItem }>) {
   const auditEntries = ["Distinta inviata dal dirigente", "Riconoscimento completato dall’arbitro", "Referto inviato dall’arbitro", "Referto ricevuto dalla federazione", ...item.auditSummary];
   return <Card style={[styles.cardGap, styles.auditPanel]}><View><Text style={styles.kicker}>Audit sintetico</Text><Text style={styles.heading}>{item.matchLabel}</Text><Text style={styles.body}>Attore evento: {item.refereeName || "Arbitro Demo"}</Text></View>{auditEntries.map((entry, index) => <Text key={`${entry}-${index}`} style={styles.auditEntry}>{index + 1}. {entry}{"\n"}<Text style={styles.body}>Timestamp: {formatSubmittedAt(new Date().toISOString())}</Text></Text>)}</Card>;
+}
+
+function CollapsibleSection({ children, defaultExpanded = false, title }: Readonly<{ children: React.ReactNode; defaultExpanded?: boolean; title: string }>) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  return <View style={styles.collapsible}><Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded((current) => !current)} style={styles.collapsibleHeader}><Text style={styles.filterLabel}>{title}</Text><Text style={styles.choiceText}>{expanded ? "Chiudi" : "Apri"}</Text></Pressable>{expanded ? <View style={styles.collapsibleBody}>{children}</View> : null}</View>;
 }
 
 function StatusBadge({ status }: Readonly<{ status: string }>) {
@@ -245,22 +260,30 @@ const styles = StyleSheet.create({
   buttonRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   dangerNote: { backgroundColor: "#fee2e2", borderRadius: radii.md, color: "#991b1b", fontSize: 12, lineHeight: 18, padding: spacing.sm },
   detailHeader: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, justifyContent: "space-between" },
+  horizontalScroller: { marginHorizontal: -spacing.xs },
   eventRow: { borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
   inputLike: { borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, color: colors.foreground, padding: spacing.md },
   listButton: { borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
   listButtonActive: { backgroundColor: colors.muted, borderColor: colors.primary },
-  photoBox: { alignItems: "center", aspectRatio: 1, backgroundColor: colors.muted, borderRadius: radii.lg, justifyContent: "center", overflow: "hidden" },
+  photoActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingTop: spacing.sm },
   photoCard: { borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, gap: spacing.md, padding: spacing.md },
-  photoGrid: { gap: spacing.md },
-  photoImage: { height: "100%", width: "100%" },
+  photoCardHeader: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md, justifyContent: "space-between" },
+  photoGrid: { gap: spacing.lg },
+  photoHint: { color: colors.mutedForeground, fontSize: 12, fontWeight: "600" },
+  photoPreview: { aspectRatio: 3 / 4, minHeight: 220 },
+  panelHeader: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, justifyContent: "space-between" },
   scoreBadge: { backgroundColor: colors.primary, borderRadius: radii.lg, color: colors.white, fontSize: 22, fontWeight: "900", paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   successNote: { backgroundColor: colors.successBackground, borderRadius: radii.md, color: colors.successText, fontSize: 12, lineHeight: 18, padding: spacing.sm },
   cardGap: { gap: spacing.lg },
   cardGapSmall: { gap: spacing.sm },
-  choiceButton: { backgroundColor: colors.muted, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  collapsible: { borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, overflow: "hidden" },
+  collapsibleBody: { gap: spacing.sm, padding: spacing.md },
+  collapsibleHeader: { alignItems: "center", backgroundColor: colors.muted, flexDirection: "row", justifyContent: "space-between", padding: spacing.md },
+  choiceButton: { backgroundColor: colors.muted, borderRadius: radii.md, marginRight: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   choiceButtonActive: { backgroundColor: colors.primary },
   choiceText: { color: colors.foreground, fontSize: 13, fontWeight: "600" },
   choiceTextActive: { color: colors.white },
+  chipRail: { marginHorizontal: -spacing.xs },
   choiceWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   emptyInline: { backgroundColor: colors.muted, borderRadius: radii.lg, color: colors.mutedForeground, fontSize: 14, padding: spacing.md },
   filterGroup: { gap: spacing.sm },
@@ -270,19 +293,20 @@ const styles = StyleSheet.create({
   kicker: { color: colors.primary, fontWeight: "600" },
   matchList: { borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1 },
   matchRow: { borderBottomColor: colors.border, borderBottomWidth: 1, gap: spacing.sm, padding: spacing.md },
+  reportChip: { borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, marginRight: spacing.sm, minWidth: 220, padding: spacing.md },
   matchTitle: { color: colors.foreground, fontSize: 16, fontWeight: "700" },
   matchday: { color: colors.primary, fontSize: 13, fontWeight: "800" },
-  screen: { gap: spacing.lg, padding: spacing.xl },
-  sectionButton: { backgroundColor: colors.muted, borderRadius: radii.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  sectionButtonActive: { backgroundColor: colors.primary },
-  sectionTabs: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  sectionText: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
-  sectionTextActive: { color: colors.white },
+  screen: { gap: spacing.lg },
+  searchBox: { alignItems: "center", flexDirection: "row", gap: spacing.sm },
+  searchInput: { borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, color: colors.foreground, flex: 1, minHeight: 48, padding: spacing.md },
   statCard: { gap: spacing.sm },
   statGrid: { gap: spacing.md },
   statLabel: { color: colors.mutedForeground, fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
   statValue: { color: colors.foreground, fontSize: 32, fontWeight: "800" },
   statusBadge: { borderRadius: 999, fontSize: 12, fontWeight: "800", paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  summaryPill: { alignItems: "center", backgroundColor: colors.primary, borderRadius: radii.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  summaryScore: { color: colors.white, fontSize: 22, fontWeight: "900" },
+  summaryText: { color: colors.white, fontSize: 11, fontWeight: "700" },
   statusDanger: { backgroundColor: "#fee2e2", color: "#991b1b" },
   statusNeutral: { backgroundColor: colors.muted, color: colors.foreground },
   statusPositive: { backgroundColor: colors.successBackground, color: colors.successText },

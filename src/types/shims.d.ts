@@ -35,8 +35,19 @@ declare module "react-native" {
   export const Text: (props: Record<string, unknown>) => unknown;
   export const TextInput: (props: Record<string, unknown>) => unknown;
   export const Image: (props: Record<string, unknown>) => unknown;
+  export const Modal: (props: Record<string, unknown>) => unknown;
   export const Pressable: (props: Record<string, unknown>) => unknown;
+  export const KeyboardAvoidingView: (props: Record<string, unknown>) => unknown;
+  export const ScrollView: (props: Record<string, unknown>) => unknown;
+  export const StatusBar: (props: Record<string, unknown>) => unknown;
+  export const Platform: { OS: string };
   export const StyleSheet: { create<T extends Record<string, unknown>>(styles: T): T };
+  export function useWindowDimensions(): { width: number; height: number; scale: number; fontScale: number };
+}
+
+declare module "react-native-safe-area-context" {
+  export const SafeAreaView: (props: Record<string, unknown>) => unknown;
+  export function useSafeAreaInsets(): { bottom: number; left: number; right: number; top: number };
 }
 
 declare module "@tanstack/react-query" {
@@ -96,8 +107,17 @@ declare module "@testing-library/react-native" {
 declare const describe: (name: string, fn: () => void) => void;
 declare const it: (name: string, fn: () => void | Promise<void>) => void;
 declare const expect: (value: unknown) => { toBe: (expected: unknown) => void; toBeTruthy: () => void; toHaveBeenCalledTimes: (count: number) => void };
-declare const jest: { fn: () => ((...args: unknown[]) => unknown) & { mock: unknown } };
+declare const jest: { fn: (implementation?: (...args: unknown[]) => unknown) => ((...args: unknown[]) => unknown) & { mock: unknown }; mock: (moduleName: string, factory?: () => unknown, options?: { virtual?: boolean }) => void };
 
 declare const process: { env: Record<string, string | undefined> };
 declare const afterEach: (fn: () => void) => void;
 declare module "@testing-library/react-native/extend-expect" {}
+
+
+declare module "expo-image-picker" {
+  export const MediaType: { Images: "images" };
+  export function requestCameraPermissionsAsync(): Promise<{ granted?: boolean }>;
+  export function requestMediaLibraryPermissionsAsync(): Promise<{ granted?: boolean }>;
+  export function launchCameraAsync(options: Record<string, unknown>): Promise<{ canceled?: boolean; assets?: readonly Record<string, unknown>[] | null }>;
+  export function launchImageLibraryAsync(options: Record<string, unknown>): Promise<{ canceled?: boolean; assets?: readonly Record<string, unknown>[] | null }>;
+}

@@ -8,6 +8,7 @@ export function Input({ placeholderTextColor = colors.mutedForeground, style, ..
   return (
     <TextInput
       placeholderTextColor={placeholderTextColor}
+      selectionColor={colors.primary}
       style={[styles.input, style]}
       {...props}
     />
@@ -22,7 +23,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: colors.foreground,
     fontSize: 14,
-    minHeight: 42,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     width: "100%",

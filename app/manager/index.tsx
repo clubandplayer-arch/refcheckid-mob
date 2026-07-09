@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { AuthGate } from "@/components/auth/auth-gate";
+import { MobileScreen } from "@/components/ui/mobile-screen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
@@ -25,36 +26,36 @@ function ManagerDashboard() {
 
   if (dashboardQuery.isLoading) {
     return (
-      <View style={styles.screen}>
+      <MobileScreen contentStyle={styles.screen}>
         <SkeletonBlock />
-      </View>
+      </MobileScreen>
     );
   }
 
   if (dashboardQuery.isError) {
     return (
-      <View style={styles.screen}>
+      <MobileScreen contentStyle={styles.screen}>
         <ErrorState
           message={dashboardQuery.error?.message ?? "Errore API"}
           onRetry={() => void dashboardQuery.refetch()}
         />
-      </View>
+      </MobileScreen>
     );
   }
 
   const dashboard = dashboardQuery.data;
   if (!dashboard) {
     return (
-      <View style={styles.screen}>
+      <MobileScreen contentStyle={styles.screen}>
         <EmptyState message="Dashboard dirigente non disponibile." />
-      </View>
+      </MobileScreen>
     );
   }
 
   const nextMatch = dashboard.nextMatch;
 
   return (
-    <View style={styles.screen}>
+    <MobileScreen contentStyle={styles.screen}>
       <View style={styles.header}>
         <View style={styles.headingText}>
           <Text style={styles.kicker}>Area Dirigente</Text>
@@ -99,7 +100,7 @@ function ManagerDashboard() {
           )}
         </Card>
       </View>
-    </View>
+    </MobileScreen>
   );
 }
 
@@ -126,7 +127,7 @@ const styles = StyleSheet.create({
   matchDetails: { gap: spacing.xs },
   notifications: { gap: spacing.sm },
   opponent: { color: colors.foreground, fontSize: 18, fontWeight: "700" },
-  screen: { gap: spacing.lg, padding: spacing.xl },
+  screen: { gap: spacing.lg },
   statusPill: {
     alignSelf: "flex-start",
     backgroundColor: colors.muted,

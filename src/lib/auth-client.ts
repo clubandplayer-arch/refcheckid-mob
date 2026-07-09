@@ -26,6 +26,7 @@ export async function authenticateWithPassword(input: {
   password: string;
 }): Promise<AppSession> {
   const url = `${getApiBaseUrl()}/auth/login`;
+
   let response: Response;
   try {
     response = await fetch(url, {
