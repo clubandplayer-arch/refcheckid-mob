@@ -24,6 +24,11 @@
 - [x] Il warning di deprecazione Expo Image Picker è stato rimosso aggiornando l'uso di `mediaTypes` alla nuova API SDK 57.
 - [x] I log temporanei del login sono stati rimossi.
 
+### Follow-up Federazione
+
+- [ ] Hardening UX Federazione da affrontare in milestone dedicata: scrolling insufficiente nelle schermate lunghe e confronto foto ancora desktop-oriented.
+- [ ] La criticità Federazione è confermata dai test reali, ma resta fuori scope dalla chiusura P0/P1 Foto Distinta e non richiede modifiche applicative in questa fase.
+
 ## Wave 1 — Fondazioni applicative, configurazione e design system minimo
 
 ### Checklist Feature Parity Wave 1
