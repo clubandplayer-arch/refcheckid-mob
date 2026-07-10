@@ -17,6 +17,7 @@ export interface PlayerListItem {
   firstName: string;
   lastName: string;
   photoUrl: string | null;
+  officialPhotoState?: "missing" | "pending" | "active" | "rejected" | "suspended";
   warning: boolean;
   suspended: boolean;
   selected: boolean;
@@ -32,5 +33,6 @@ export interface StaffListItem {
   fullName: string;
   role: string;
   photoUrl: string | null;
+  officialPhotoState?: "missing" | "pending" | "active" | "rejected" | "suspended";
   selected: boolean;
 }

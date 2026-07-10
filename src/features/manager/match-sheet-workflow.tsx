@@ -16,7 +16,14 @@ import {
   validateMatchSheet,
 } from "@/lib/match-sheet-validation";
 import { queryKeys, useApiMutation, useApiQuery, useInvalidateQueries } from "@/lib/query";
-import { saveManagerSubjectPhoto } from "@/lib/manager-photo-store";
+import {
+  completeOfficialPhotoUpload,
+  createOfficialPhotoUploadIntent,
+  getOfficialPhotoStateLabel,
+  prefetchOfficialPhotoManifest,
+  uploadOfficialPhotoBinary,
+  type OfficialPhotoSubjectKind,
+} from "@/lib/official-photo-service";
 import { clearSubmittedMatchSheetSnapshot, saveSubmittedMatchSheetSnapshot } from "@/lib/submitted-match-sheet";
 import { choosePhotoFromLibrary, takePhotoWithCamera } from "@/lib/native-image-picker";
 import { colors, radii, spacing } from "@/lib/theme";
@@ -45,6 +52,7 @@ export function MatchSheetWorkflow() {
 
   const playersQuery = useApiQuery([...queryKeys.players, managerTeam], fetchPlayers);
   const staffQuery = useApiQuery([...queryKeys.staff, managerTeam], fetchStaff);
+  useApiQuery([...queryKeys.photos, "official-manifest", managerTeam], prefetchOfficialPhotoManifest, { staleTime: 5 * 60 * 1000 });
   const sheetsQuery = useApiQuery(
     [...queryKeys.matchSheets, managerClubId],
     () => fetchMatchSheets(`?clubId=${encodeURIComponent(managerClubId)}`),
@@ -128,36 +136,44 @@ export function MatchSheetWorkflow() {
     setPhotoError(null);
   }
 
-  function confirmPhoto(subjectId: string, applyPhoto: (photoUrl: string) => void) {
+  async function confirmPhoto(subjectId: string, applyPhoto: (photoUrl: string) => Promise<void>) {
     if (!photoDraft || photoDraft.id !== subjectId) {
       setPhotoError("Conferma una preview prima del salvataggio.");
       return;
     }
-    applyPhoto(cropPhotoDraft(photoDraft));
-    setPhotoDraft(null);
-    setPhotoError(null);
+    try {
+      await applyPhoto(cropPhotoDraft(photoDraft));
+      setPhotoDraft(null);
+      setPhotoError(null);
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : "Upload foto non riuscito.");
+    }
   }
 
-  function updatePlayerPhoto(playerId: string, photoUrl: string) {
-    const player = players.find((item) => item.id === playerId);
-    const status = saveManagerSubjectPhoto(managerTeam, playerId, photoUrl, player?.photoUrl ?? null, player ? `${player.lastName} ${player.firstName}` : playerId);
-    if (status === "approved") {
-      setPlayerList((current) => current.map((item) => (item.id === playerId ? { ...item, photoUrl } : item)));
-      notify("Foto tesserato aggiornata", "success");
-      return;
+  async function uploadOfficialPhoto(subjectId: string, subjectKind: OfficialPhotoSubjectKind, photoUrl: string) {
+    if (!photoDraft || photoDraft.id !== subjectId) throw new Error("Conferma una preview prima del salvataggio.");
+    const intent = await createOfficialPhotoUploadIntent({ mimeType: photoDraft.mimeType, sizeBytes: photoDraft.sizeBytes, subjectId, subjectKind });
+    await uploadOfficialPhotoBinary(intent, photoUrl, photoDraft.mimeType);
+    const completed = await completeOfficialPhotoUpload({ mimeType: photoDraft.mimeType, sizeBytes: photoDraft.sizeBytes, storagePath: intent.storagePath, subjectId, subjectKind, uploadId: intent.uploadId });
+    void invalidateQueries(queryKeys.photos);
+    void invalidateQueries(queryKeys.players);
+    void invalidateQueries(queryKeys.staff);
+    const backendPhotoUrl = completed.manifestEntry?.photoUrl ?? null;
+    const backendState = completed.manifestEntry?.state ?? "pending";
+    if (subjectKind === "player") {
+      setPlayerList((current) => current.map((item) => (item.id === subjectId ? { ...item, photoUrl: backendPhotoUrl } : item)));
+    } else {
+      setStaffList((current) => current.map((item) => (item.id === subjectId ? { ...item, photoUrl: backendPhotoUrl } : item)));
     }
-    notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto attuale a tuo rischio durante il riconoscimento", "success");
+    notify(`Foto inviata tramite Official Photo Service. Stato backend: ${getOfficialPhotoStateLabel(backendState)}.`, "success");
   }
 
-  function updateStaffPhoto(staffId: string, photoUrl: string) {
-    const staffMember = staff.find((item) => item.id === staffId);
-    const status = saveManagerSubjectPhoto(managerTeam, staffId, photoUrl, staffMember?.photoUrl ?? null, staffMember?.fullName ?? staffId);
-    if (status === "approved") {
-      setStaffList((current) => current.map((item) => (item.id === staffId ? { ...item, photoUrl } : item)));
-      notify("Foto tesserato aggiornata", "success");
-      return;
-    }
-    notify("Nuova foto inviata alla Federazione per approvazione: fino all’esito userai la foto attuale a tuo rischio durante il riconoscimento", "success");
+  async function updatePlayerPhoto(playerId: string, photoUrl: string) {
+    await uploadOfficialPhoto(playerId, "player", photoUrl);
+  }
+
+  async function updateStaffPhoto(staffId: string, photoUrl: string) {
+    await uploadOfficialPhoto(staffId, "staff", photoUrl);
   }
 
   function togglePlayer(playerId: string) {
@@ -228,9 +244,9 @@ export function MatchSheetWorkflow() {
         <Button disabled={resetSmokeMutation.isPending} onPress={() => resetSmokeMutation.mutate()}>Ripristina distinta di prova</Button>
       </View>
       <MatchSheetStepper currentStep={step} onChangeStep={setStep} />
-      {step === 0 ? <PlayersStep onCancelPhoto={(playerId) => clearPhotoDraft(playerId)} onConfirmPhoto={(playerId) => confirmPhoto(playerId, (photoUrl) => updatePlayerPhoto(playerId, photoUrl))} onPhotoDraft={handlePhotoDraft} onPhotoError={setPhotoError} onPhotoTransform={updatePhotoDraftTransform} photoDraft={photoDraft} photoError={photoError} players={filteredPlayers} query={query} setQuery={setQuery} togglePlayer={togglePlayer} /> : null}
+      {step === 0 ? <PlayersStep onCancelPhoto={(playerId) => clearPhotoDraft(playerId)} onConfirmPhoto={(playerId) => void confirmPhoto(playerId, (photoUrl) => updatePlayerPhoto(playerId, photoUrl))} onPhotoDraft={handlePhotoDraft} onPhotoError={setPhotoError} onPhotoTransform={updatePhotoDraftTransform} photoDraft={photoDraft} photoError={photoError} players={filteredPlayers} query={query} setQuery={setQuery} togglePlayer={togglePlayer} /> : null}
       {step === 1 ? <OrderStep players={calledPlayers} movePlayer={movePlayer} toggleCaptain={toggleCaptain} togglePlayer={togglePlayer} toggleViceCaptain={toggleViceCaptain} updatePlayer={updatePlayer} /> : null}
-      {step === 2 ? <StaffStep onCancelPhoto={(staffId) => clearPhotoDraft(staffId)} onConfirmPhoto={(staffId) => confirmPhoto(staffId, (photoUrl) => updateStaffPhoto(staffId, photoUrl))} onPhotoDraft={handlePhotoDraft} onPhotoError={setPhotoError} onPhotoTransform={updatePhotoDraftTransform} photoDraft={photoDraft} photoError={photoError} staff={staff} toggleStaff={toggleStaff} /> : null}
+      {step === 2 ? <StaffStep onCancelPhoto={(staffId) => clearPhotoDraft(staffId)} onConfirmPhoto={(staffId) => void confirmPhoto(staffId, (photoUrl) => updateStaffPhoto(staffId, photoUrl))} onPhotoDraft={handlePhotoDraft} onPhotoError={setPhotoError} onPhotoTransform={updatePhotoDraftTransform} photoDraft={photoDraft} photoError={photoError} staff={staff} toggleStaff={toggleStaff} /> : null}
       {step === 3 ? <SummaryStep isReadOnly={isReadOnly} isSubmitting={submitMutation.isPending} onInvalidSubmit={(message) => notify(message, "error")} onSubmit={() => submitMutation.mutate()} players={calledPlayers} staff={calledStaff} /> : null}
       <MatchSheetStepper currentStep={step} onChangeStep={setStep} />
     </Screen>
@@ -246,7 +262,7 @@ function Screen({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 function PlayersStep({ onCancelPhoto, onConfirmPhoto, onPhotoDraft, onPhotoError, onPhotoTransform, photoDraft, photoError, players, query, setQuery, togglePlayer }: Readonly<{ onCancelPhoto: (id: string) => void; onConfirmPhoto: (id: string) => void; onPhotoDraft: (id: string, draft: Pick<PhotoDraft, "previewUrl" | "mimeType" | "sizeBytes"> | null) => void; onPhotoError: (message: string | null) => void; onPhotoTransform: (id: string, transform: Partial<Pick<PhotoDraft, "zoom" | "offsetX" | "offsetY">>) => void; photoDraft: PhotoDraft | null; photoError: string | null; players: readonly PlayerListItem[]; query: string; setQuery: (value: string) => void; togglePlayer: (id: string) => void }>) {
-  return <Card style={styles.section}><Text style={styles.cardTitle}>Compilazione distinta</Text><Text style={styles.body}>Ricerca giocatori, controlla foto, diffide, squalifiche e convocazione.</Text><PhotoApprovalNotice /><Input onChangeText={setQuery} placeholder="Cerca giocatore" value={query} />{players.length === 0 ? <EmptyState message="Nessun giocatore trovato." /> : players.map((player) => { const tone = getPlayerStatusTone(player); return <View key={player.id} style={[styles.rowCard, tone === "warning" ? styles.warning : null, tone === "suspended" ? styles.suspended : null]}><View style={styles.rowText}><Text style={styles.name}>{player.lastName} {player.firstName}</Text><Text style={styles.body}>{player.warning ? "Diffida" : "Nessuna diffida"} · {player.suspended ? "Squalificato" : "Disponibile"}{!player.photoUrl ? " · Foto mancante" : ""}</Text>{player.photoUrl ? <Image accessibilityLabel={`Foto ${player.lastName} ${player.firstName}`} source={{ uri: player.photoUrl }} style={styles.photo} /> : <View style={styles.photoPlaceholder}><Text style={styles.body}>Foto</Text></View>}</View><PhotoCaptureControls currentPhotoUrl={player.photoUrl} onCancel={() => onCancelPhoto(player.id)} onConfirm={() => onConfirmPhoto(player.id)} onPhotoDraft={(draft) => onPhotoDraft(player.id, draft)} onPhotoError={onPhotoError} onPhotoTransform={(transform) => onPhotoTransform(player.id, transform)} photoDraft={photoDraft?.id === player.id ? photoDraft : null} photoError={photoError} subjectLabel={`${player.lastName} ${player.firstName}`} /><Button disabled={player.suspended} onPress={() => togglePlayer(player.id)}>{player.selected ? "Rimuovi" : "Convoca"}</Button></View>; })}</Card>;
+  return <Card style={styles.section}><Text style={styles.cardTitle}>Compilazione distinta</Text><Text style={styles.body}>Ricerca giocatori, controlla foto, diffide, squalifiche e convocazione.</Text><PhotoApprovalNotice /><Input onChangeText={setQuery} placeholder="Cerca giocatore" value={query} />{players.length === 0 ? <EmptyState message="Nessun giocatore trovato." /> : players.map((player) => { const tone = getPlayerStatusTone(player); return <View key={player.id} style={[styles.rowCard, tone === "warning" ? styles.warning : null, tone === "suspended" ? styles.suspended : null]}><View style={styles.rowText}><Text style={styles.name}>{player.lastName} {player.firstName}</Text><Text style={styles.body}>{player.warning ? "Diffida" : "Nessuna diffida"} · {player.suspended ? "Squalificato" : "Disponibile"}{` · Foto ${getOfficialPhotoStateLabel(player.officialPhotoState ?? "missing")}`}</Text>{player.photoUrl ? <Image accessibilityLabel={`Foto ${player.lastName} ${player.firstName}`} source={{ uri: player.photoUrl }} style={styles.photo} /> : <View style={styles.photoPlaceholder}><Text style={styles.body}>Foto</Text></View>}</View><PhotoCaptureControls currentPhotoUrl={player.photoUrl} onCancel={() => onCancelPhoto(player.id)} onConfirm={() => onConfirmPhoto(player.id)} onPhotoDraft={(draft) => onPhotoDraft(player.id, draft)} onPhotoError={onPhotoError} onPhotoTransform={(transform) => onPhotoTransform(player.id, transform)} photoDraft={photoDraft?.id === player.id ? photoDraft : null} photoError={photoError} subjectLabel={`${player.lastName} ${player.firstName}`} /><Button disabled={player.suspended} onPress={() => togglePlayer(player.id)}>{player.selected ? "Rimuovi" : "Convoca"}</Button></View>; })}</Card>;
 }
 
 function PhotoApprovalNotice() {
@@ -333,7 +349,7 @@ function OrderStep({ players, movePlayer, toggleCaptain, togglePlayer, toggleVic
 }
 
 function StaffStep({ onCancelPhoto, onConfirmPhoto, onPhotoDraft, onPhotoError, onPhotoTransform, photoDraft, photoError, staff, toggleStaff }: Readonly<{ onCancelPhoto: (id: string) => void; onConfirmPhoto: (id: string) => void; onPhotoDraft: (id: string, draft: Pick<PhotoDraft, "previewUrl" | "mimeType" | "sizeBytes"> | null) => void; onPhotoError: (message: string | null) => void; onPhotoTransform: (id: string, transform: Partial<Pick<PhotoDraft, "zoom" | "offsetX" | "offsetY">>) => void; photoDraft: PhotoDraft | null; photoError: string | null; staff: readonly StaffListItem[]; toggleStaff: (id: string) => void }>) {
-  return <Card style={styles.section}><Text style={styles.cardTitle}>Staff</Text>{staff.length === 0 ? <EmptyState message="Nessuno staff disponibile." /> : staff.map((staffMember) => <View key={staffMember.id} style={styles.rowCard}><View style={styles.rowText}><Text style={styles.name}>{staffMember.fullName}</Text><Text style={styles.body}>{staffMember.role}{!staffMember.photoUrl ? " · Foto mancante" : ""}</Text>{staffMember.photoUrl ? <Image accessibilityLabel={`Foto ${staffMember.fullName}`} source={{ uri: staffMember.photoUrl }} style={styles.photo} /> : <View style={styles.photoPlaceholder}><Text style={styles.body}>Foto</Text></View>}</View><PhotoCaptureControls currentPhotoUrl={staffMember.photoUrl} onCancel={() => onCancelPhoto(staffMember.id)} onConfirm={() => onConfirmPhoto(staffMember.id)} onPhotoDraft={(draft) => onPhotoDraft(staffMember.id, draft)} onPhotoError={onPhotoError} onPhotoTransform={(transform) => onPhotoTransform(staffMember.id, transform)} photoDraft={photoDraft?.id === staffMember.id ? photoDraft : null} photoError={photoError} subjectLabel={staffMember.fullName} /><Button onPress={() => toggleStaff(staffMember.id)}>{staffMember.selected ? "Rimuovi" : "Seleziona"}</Button></View>)}</Card>;
+  return <Card style={styles.section}><Text style={styles.cardTitle}>Staff</Text>{staff.length === 0 ? <EmptyState message="Nessuno staff disponibile." /> : staff.map((staffMember) => <View key={staffMember.id} style={styles.rowCard}><View style={styles.rowText}><Text style={styles.name}>{staffMember.fullName}</Text><Text style={styles.body}>{staffMember.role}{` · Foto ${getOfficialPhotoStateLabel(staffMember.officialPhotoState ?? "missing")}`}</Text>{staffMember.photoUrl ? <Image accessibilityLabel={`Foto ${staffMember.fullName}`} source={{ uri: staffMember.photoUrl }} style={styles.photo} /> : <View style={styles.photoPlaceholder}><Text style={styles.body}>Foto</Text></View>}</View><PhotoCaptureControls currentPhotoUrl={staffMember.photoUrl} onCancel={() => onCancelPhoto(staffMember.id)} onConfirm={() => onConfirmPhoto(staffMember.id)} onPhotoDraft={(draft) => onPhotoDraft(staffMember.id, draft)} onPhotoError={onPhotoError} onPhotoTransform={(transform) => onPhotoTransform(staffMember.id, transform)} photoDraft={photoDraft?.id === staffMember.id ? photoDraft : null} photoError={photoError} subjectLabel={staffMember.fullName} /><Button onPress={() => toggleStaff(staffMember.id)}>{staffMember.selected ? "Rimuovi" : "Seleziona"}</Button></View>)}</Card>;
 }
 
 function SummaryStep({ isReadOnly, isSubmitting, onInvalidSubmit, onSubmit, players, staff }: Readonly<{ isReadOnly: boolean; isSubmitting: boolean; onInvalidSubmit: (message: string) => void; onSubmit: () => void; players: readonly PlayerListItem[]; staff: readonly StaffListItem[] }>) {
