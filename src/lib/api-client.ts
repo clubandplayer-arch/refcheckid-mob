@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from "./api-base-url";
 import { managerTeamConfig, getCurrentManagerTeam } from "./manager-team";
-import { applyManagerPhotoOverrides } from "./manager-photo-store";
+import { enrichPlayersWithBackendPhotos, enrichStaffWithBackendStatus } from "./manager-photo-backend";
 import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
 import { resolveRenderablePhotoUrl } from "./photo-url";
 import {
@@ -101,62 +101,84 @@ function toManagerStatusNotification(status: ApiMatchSheet["status"]): string {
 }
 
 export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
-  const [players, photos] = await Promise.all([
-    request<readonly Record<string, unknown>[]>("/players"),
-    fetchPhotos().catch(() => [] as readonly ApiPhoto[]),
-  ]);
+  const players = await request<readonly Record<string, unknown>[]>("/players");
   const managerTeam = getCurrentManagerTeam();
   const pilotRoster = managerTeam === "away" ? pilotAwayPlayers : pilotPlayers;
-  if (players.length === 0) return applyManagerPhotoOverrides(managerTeam, withPhotoMetadata(pilotRoster, photos, "player"));
-  return applyManagerPhotoOverrides(managerTeam, players.map((player) => ({
-    id: String(player.id),
-    firstName: String(player.firstName ?? player.first_name ?? ""),
-    lastName: String(player.lastName ?? player.last_name ?? ""),
-    photoUrl: resolveSubjectPhotoUrl(photos, String(player.id), "player", String(player.photoUrl ?? player.photo_url ?? "/placeholder-player.svg")),
-    warning: Boolean(player.warning ?? false),
-    suspended: Boolean(player.suspended ?? false),
-    selected: false,
-    shirtNumber: null,
-    role: "starter",
-    isGoalkeeper: false,
-    isCaptain: false,
-    isViceCaptain: false,
-  })));
+  const managerClubId = managerTeamConfig[managerTeam].clubId;
+  const registrations = await fetchPlayerRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`).catch(() => [] as readonly ApiPlayerRegistration[]);
+  const registrationByPlayerId = new Map(registrations.map((registration) => [registration.playerId, registration]));
+  const mappedPlayers: readonly PlayerListItem[] = players.length === 0 ? pilotRoster : players.map((player) => {
+    const registration = registrationByPlayerId.get(String(player.id));
+    return {
+      id: String(player.id),
+      firstName: String(player.firstName ?? player.first_name ?? ""),
+      lastName: String(player.lastName ?? player.last_name ?? ""),
+      photoUrl: normalizePhotoUrl(player.photoUrl ?? player.photo_url),
+      registrationId: registration?.id ?? null,
+      season: registration?.season ?? null,
+      warning: Boolean(player.warning ?? false),
+      suspended: Boolean(player.suspended ?? false),
+      selected: false,
+      shirtNumber: null,
+      role: "starter",
+      isGoalkeeper: false,
+      isCaptain: false,
+      isViceCaptain: false,
+    };
+  });
+  return enrichPlayersWithBackendPhotos(managerTeam, mappedPlayers);
 }
 
 export async function fetchStaff(): Promise<readonly StaffListItem[]> {
-  const [staff, photos] = await Promise.all([
-    request<readonly Record<string, unknown>[]>("/staff-members"),
-    fetchPhotos().catch(() => [] as readonly ApiPhoto[]),
-  ]);
+  const staff = await request<readonly Record<string, unknown>[]>("/staff-members");
   const managerTeam = getCurrentManagerTeam();
+  const managerClubId = managerTeamConfig[managerTeam].clubId;
+  const registrations = await fetchStaffRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`).catch(() => [] as readonly ApiStaffRegistration[]);
+  const registrationByStaffId = new Map(registrations.map((registration) => [registration.staffMemberId, registration]));
   const pilotRoster = managerTeam === "away" ? pilotAwayStaff : pilotStaff;
-  if (staff.length === 0) return applyManagerPhotoOverrides(managerTeam, withPhotoMetadata(pilotRoster, photos, "staff"));
-  return applyManagerPhotoOverrides(managerTeam, staff.map((staffMember) => ({
-    id: String(staffMember.id),
-    fullName: String(
-      staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
-    ),
-    role: String(staffMember.role ?? "staff"),
-    photoUrl: resolveSubjectPhotoUrl(photos, String(staffMember.id), "staff", staffMember.photoUrl ? String(staffMember.photoUrl) : null),
-    selected: false,
-  })));
-}
-
-function withPhotoMetadata<TSubject extends { id: string; photoUrl: string | null }>(subjects: readonly TSubject[], photos: readonly ApiPhoto[], kind: "player" | "staff"): readonly TSubject[] {
-  return subjects.map((subject) => ({
-    ...subject,
-    photoUrl: resolveSubjectPhotoUrl(photos, subject.id, kind, subject.photoUrl),
-  }));
-}
-
-function resolveSubjectPhotoUrl(photos: readonly ApiPhoto[], subjectId: string, kind: "player" | "staff", fallback: string | null): string | null {
-  const metadataPhoto = photos.find((photo) => {
-    if (photo.status === "archived" || photo.status === "rejected") return false;
-    const ownerId = kind === "player" ? photo.playerId ?? photo.player_id : photo.staffMemberId ?? photo.staff_member_id;
-    return ownerId === subjectId;
+  const mappedStaff: readonly StaffListItem[] = staff.length === 0 ? pilotRoster : staff.map((staffMember) => {
+    const registration = registrationByStaffId.get(String(staffMember.id));
+    return {
+      id: String(staffMember.id),
+      fullName: String(staffMember.fullName ?? staffMember.full_name ?? staffMember.id),
+      role: String(registration?.role ?? staffMember.role ?? "staff"),
+      photoUrl: normalizePhotoUrl(staffMember.photoUrl ?? staffMember.photo_url),
+      registrationId: registration?.id ?? null,
+      season: registration?.season ?? null,
+      selected: false,
+    };
   });
-  return resolveRenderablePhotoUrl(metadataPhoto?.storagePath ?? metadataPhoto?.storage_path ?? fallback);
+  return enrichStaffWithBackendStatus(managerTeam, mappedStaff);
+}
+
+export interface ApiPlayerRegistration {
+  id: string;
+  playerId: string;
+  clubId: string;
+  season: string;
+  status: string;
+}
+
+export function fetchPlayerRegistrations(query = ""): Promise<readonly ApiPlayerRegistration[]> {
+  return request<readonly ApiPlayerRegistration[]>(`/player-registrations${query}`);
+}
+
+export interface ApiStaffRegistration {
+  id: string;
+  staffMemberId: string;
+  clubId: string;
+  season: string;
+  role: string;
+  status: string;
+}
+
+export function fetchStaffRegistrations(query = ""): Promise<readonly ApiStaffRegistration[]> {
+  return request<readonly ApiStaffRegistration[]>(`/staff-registrations${query}`);
+}
+
+function normalizePhotoUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0) return null;
+  return value === "/placeholder-player.svg" ? null : resolveRenderablePhotoUrl(value);
 }
 
 export function fetchMatches(query = ""): Promise<readonly ApiMatch[]> {
