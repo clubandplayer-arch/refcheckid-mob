@@ -81,7 +81,6 @@ export async function uploadOfficialSubjectPhoto(input: { subjectKind: "athlete"
     body: JSON.stringify({
       subjectKind: input.subjectKind,
       subjectId: input.subjectId,
-      ...(input.subjectKind === "athlete" ? { playerId: input.subjectId } : { staffMemberId: input.subjectId }),
       registrationId: input.registrationId,
       federationId: input.federationId,
       seasonId: input.seasonId,

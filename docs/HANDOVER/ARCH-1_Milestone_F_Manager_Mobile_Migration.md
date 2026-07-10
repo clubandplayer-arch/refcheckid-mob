@@ -31,12 +31,28 @@ Differenze residue individuate prima della migrazione:
   - URL della versione proposta;
   - Upload Intent;
   - Upload Complete;
+  - payload definitivo subject-based per Upload Intent, senza `playerId` / `staffMemberId`;
   - fallback locale solo quando consentito dai feature flag esistenti.
 - Aggiunti feature flag mobile compatibili con i flag Web esistenti, senza introdurre nuovi flag.
 - Aggiornato `api-client` per arricchire Player e Staff con registrazioni e backend photo state.
 - Aggiornato workflow Manager Mobile per usare Upload Intent / Upload Complete come percorso primario per Player e Staff.
 - Aggiornata UI mobile con badge stato backend e confronto foto ufficiale corrente / proposta pending.
 - Aggiornati dati pilot per mantenere campi subject workflow null-safe quando il backend non espone registrazioni.
+
+## Verifica finale Source of Truth Web / Backend
+
+Prima del merge è stato verificato il contratto `POST /photos/upload-intent` nella Source of Truth backend. Il controller risolve `subjectId` direttamente da `body.subjectId` e usa `playerId` / `staffMemberId` solo come fallback legacy opzionale; il service richiede un photo subject id e calcola il subject da `subjectKind` + `subjectId`.
+
+Il client mobile usa quindi la forma definitiva del contratto subject-based:
+
+- `subjectKind`;
+- `subjectId`;
+- `registrationId`;
+- `federationId`;
+- `seasonId`;
+- metadata file.
+
+`playerId` e `staffMemberId` non vengono più inviati dal Mobile perché non sono necessari per il backend attuale e restano solo campi di retrocompatibilità server-side.
 
 ## Player
 

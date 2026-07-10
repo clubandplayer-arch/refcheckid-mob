@@ -30,5 +30,7 @@ describe("Manager Mobile ARCH-1 subject workflow", () => {
     expect(backend).toContain('/photos/uploads/${encodeURIComponent(uploadId)}/complete');
     expect(backend).toContain("readBackendPhotoState");
     expect(backend).toContain("proposedPhotoUrl");
+    expect(backend).not.toContain("playerId: input.subjectId");
+    expect(backend).not.toContain("staffMemberId: input.subjectId");
   });
 });
