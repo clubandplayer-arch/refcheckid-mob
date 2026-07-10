@@ -53,6 +53,8 @@ function buildPilotPlayers(
       firstName,
       lastName,
       photoUrl: "/placeholder-player.svg",
+      registrationId: null,
+      season: null,
       warning: number === 7,
       suspended: number === 13,
       selected: false,
