@@ -1,3 +1,5 @@
+import type { ManagerPhotoState } from "./manager-photo-backend";
+
 export type MatchSheetStatus = "draft" | "submitted" | "locked";
 export type PlayerLineupRole = "starter" | "reserve";
 
@@ -17,6 +19,9 @@ export interface PlayerListItem {
   firstName: string;
   lastName: string;
   photoUrl: string | null;
+  registrationId?: string | null;
+  season?: string | null;
+  photo?: ManagerPhotoState;
   warning: boolean;
   suspended: boolean;
   selected: boolean;
@@ -32,5 +37,6 @@ export interface StaffListItem {
   fullName: string;
   role: string;
   photoUrl: string | null;
+  photo?: ManagerPhotoState;
   selected: boolean;
 }
