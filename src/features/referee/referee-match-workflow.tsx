@@ -33,6 +33,15 @@ import { colors, radii, spacing } from "@/lib/theme";
 
 const steps = ["Distinte", "Riconoscimento", "Referto"] as const;
 
+const manifestQueryOptions = {
+  refetchInterval: false,
+  refetchOnMount: false,
+  refetchOnReconnect: false,
+  refetchOnWindowFocus: false,
+  retry: false,
+  staleTime: Number.POSITIVE_INFINITY,
+} as const;
+
 export function RefereeMatchWorkflow() {
   const [step, setStep] = useState(0);
   const [initialRecognitionTeamName, setInitialRecognitionTeamName] = useState<string | null>(null);
@@ -209,7 +218,8 @@ function RecognitionStep({
   const [isRecognitionClosed, setIsRecognitionClosed] = useState(isLocked);
   const query = useApiQuery(
     [...queryKeys.recognitions, matchId],
-    fetchRecognitionSubjects,
+    () => fetchRecognitionSubjects(matchId),
+    manifestQueryOptions,
   );
   const mutation = useApiMutation(() => completeRecognition(matchId), {
     onError(error) {
@@ -223,6 +233,14 @@ function RecognitionStep({
     },
   });
   const allSubjects = useMemo(() => query.data ?? [], [query.data]);
+  useEffect(() => {
+    const imageUrls = allSubjects
+      .filter((subject) => (subject.photoStatus ?? "active") === "active" && subject.photoUrl)
+      .map((subject) => subject.photoUrl as string);
+    imageUrls.forEach((photoUrl) => {
+      void Image.prefetch(photoUrl);
+    });
+  }, [allSubjects]);
   const teamNames = useMemo(
     () => Array.from(new Set(allSubjects.map((subject) => subject.teamName))),
     [allSubjects],
@@ -338,11 +356,16 @@ function RecognitionStep({
         <Text style={styles.progressPill}>{selectedTeamCompletedCount}/{selectedTeamTotal}</Text>
       </View>
       <View style={styles.photoFrame}>
-        {currentSubject.photoUrl ? (
+        {(currentSubject.photoStatus ?? "missing") === "active" && currentSubject.photoUrl ? (
           <Image accessibilityLabel={`Foto ${currentSubject.firstName} ${currentSubject.lastName}`} source={{ uri: currentSubject.photoUrl }} style={styles.subjectPhoto} />
         ) : (
           <Text style={styles.photoPlaceholder}>Foto non disponibile</Text>
         )}
+      </View>
+      <View style={styles.manifestInfo}>
+        <Text style={styles.detailValue}>Stato foto manifest: {photoStatusLabel(currentSubject.photoStatus ?? "missing")}</Text>
+        <Text style={styles.body}>Fonte: {currentSubject.isFrozenSnapshot ? "Snapshot congelato" : "Manifest backend"}</Text>
+        {currentSubject.photoEtag ? <Text style={styles.etagText}>photoEtag: {currentSubject.photoEtag}</Text> : null}
       </View>
       <View style={styles.cardGapSmall}>
         <Text style={styles.sideLabel}>{currentSubject.teamName}</Text>
@@ -425,7 +448,11 @@ function MatchReportStep({ fullRecognitionComplete, matchId }: Readonly<{ fullRe
   const toast = useToast();
   const invalidate = useInvalidateQueries();
   const query = useApiQuery([...queryKeys.matchReports, matchId], () => fetchRefereeReport(matchId));
-  const subjectsQuery = useApiQuery([...queryKeys.recognitions, matchId, "report-options"], fetchRecognitionSubjects);
+  const subjectsQuery = useApiQuery(
+    [...queryKeys.recognitions, matchId, "report-options"],
+    () => fetchRecognitionSubjects(matchId),
+    manifestQueryOptions,
+  );
   const [step, setStep] = useState(0);
   const [report, setReport] = useState<MatchReportDraft | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -518,6 +545,16 @@ function ChoiceField<T extends string>({ label, onChange, options, readOnly, val
   return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}>{options.map((option) => <Pressable accessibilityRole="button" accessibilityState={{ disabled: readOnly, selected: value === option }} disabled={readOnly} key={option} onPress={() => onChange(option)} style={[styles.choiceButton, value === option ? styles.choiceButtonActive : null]}><Text style={[styles.choiceText, value === option ? styles.choiceTextActive : null]}>{option}</Text></Pressable>)}</ScrollView></View>;
 }
 
+function photoStatusLabel(status: NonNullable<RecognitionSubject["photoStatus"]>): string {
+  return {
+    active: "Active",
+    missing: "Missing",
+    pending: "Pending",
+    rejected: "Rejected",
+    suspended: "Suspended",
+  }[status];
+}
+
 function playerOptions(teamName: string, subjects: readonly RecognitionSubject[]) {
   const teamNames = Array.from(new Set(subjects.map((subject) => subject.teamName)));
   const selectedTeamName = teamNames[teamName === "Casa" ? 0 : 1] ?? teamNames[0] ?? "";
@@ -560,6 +597,8 @@ const styles = StyleSheet.create({
   documentCard: { borderColor: colors.border, borderRadius: radii.xl, borderWidth: 1, gap: spacing.sm, padding: spacing.md },
   heading: { color: colors.foreground, fontSize: 20, fontWeight: "700" },
   infoBox: { backgroundColor: colors.infoBackground, borderRadius: radii.lg, color: colors.infoText, fontSize: 14, padding: spacing.md },
+  manifestInfo: { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
+  etagText: { color: colors.mutedForeground, fontSize: 11 },
   missingAlert: { backgroundColor: colors.dangerBackground, borderRadius: radii.lg, color: colors.dangerText, fontSize: 14, fontWeight: "600", padding: spacing.md },
   notesInput: { minHeight: 160, textAlignVertical: "top" },
   numberInput: { fontSize: 22, fontWeight: "800", minHeight: 56, textAlign: "center" },
