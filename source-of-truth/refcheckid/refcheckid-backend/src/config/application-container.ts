@@ -6,8 +6,17 @@ import {
   MatchReportRepository,
   MatchRepository,
   MatchSheetRepository,
+  GlobalOfficialPhotoRepository,
+  MatchSheetPhotoSnapshotRepository,
+  PhotoAccessGrantRepository,
+  PhotoApprovalRepository,
+  PhotoAuditEventRepository,
   PhotoRepository,
+  PhotoSubjectRepository,
+  PhotoSyncCursorRepository,
+  PhotoVersionRepository,
   PlayerRepository,
+  SeasonRegistrationPhotoRepository,
   RecognitionRepository,
   RefereeRepository,
   RegistrationRepository,
@@ -18,7 +27,9 @@ import {
   MatchReportService,
   MatchService,
   MatchSheetService,
+  PhotoService,
   RecognitionService,
+  LocalPhotoObjectStore,
 } from '../services/index.js';
 import { pilotMatches, pilotMatchReports, pilotMatchSheets } from './pilot-data.js';
 
@@ -32,6 +43,15 @@ export interface ApplicationContainer {
     readonly matchReports: MatchReportRepository;
     readonly matchSheets: MatchSheetRepository;
     readonly photos: PhotoRepository;
+    readonly photoSubjects: PhotoSubjectRepository;
+    readonly globalOfficialPhotos: GlobalOfficialPhotoRepository;
+    readonly seasonRegistrationPhotos: SeasonRegistrationPhotoRepository;
+    readonly photoVersions: PhotoVersionRepository;
+    readonly photoApprovals: PhotoApprovalRepository;
+    readonly matchSheetPhotoSnapshots: MatchSheetPhotoSnapshotRepository;
+    readonly photoAccessGrants: PhotoAccessGrantRepository;
+    readonly photoAuditEvents: PhotoAuditEventRepository;
+    readonly photoSyncCursors: PhotoSyncCursorRepository;
     readonly players: PlayerRepository;
     readonly recognitions: RecognitionRepository;
     readonly referees: RefereeRepository;
@@ -43,7 +63,11 @@ export interface ApplicationContainer {
     readonly matches: MatchService;
     readonly matchReports: MatchReportService;
     readonly matchSheets: MatchSheetService;
+    readonly photos: PhotoService;
     readonly recognitions: RecognitionService;
+  };
+  readonly objectStores: {
+    readonly photos: LocalPhotoObjectStore;
   };
 }
 
@@ -57,6 +81,15 @@ export function createApplicationContainer(): ApplicationContainer {
     matchReports: new MatchReportRepository(pilotMatchReports),
     matchSheets: new MatchSheetRepository(pilotMatchSheets),
     photos: new PhotoRepository(),
+    photoSubjects: new PhotoSubjectRepository(),
+    globalOfficialPhotos: new GlobalOfficialPhotoRepository(),
+    seasonRegistrationPhotos: new SeasonRegistrationPhotoRepository(),
+    photoVersions: new PhotoVersionRepository(),
+    photoApprovals: new PhotoApprovalRepository(),
+    matchSheetPhotoSnapshots: new MatchSheetPhotoSnapshotRepository(),
+    photoAccessGrants: new PhotoAccessGrantRepository(),
+    photoAuditEvents: new PhotoAuditEventRepository(),
+    photoSyncCursors: new PhotoSyncCursorRepository(),
     players: new PlayerRepository(),
     recognitions: new RecognitionRepository(),
     referees: new RefereeRepository(),
@@ -84,6 +117,25 @@ export function createApplicationContainer(): ApplicationContainer {
       matchSheetsRepository: repositories.matchSheets,
       eventPublisher: events,
     }),
+    photos: undefined as never,
+    recognitions: undefined as never,
+  };
+
+  const objectStores = { photos: new LocalPhotoObjectStore() };
+
+  const completedServices = {
+    ...services,
+    photos: new PhotoService({
+      objectStore: objectStores.photos,
+      photoSubjects: repositories.photoSubjects,
+      globalOfficialPhotos: repositories.globalOfficialPhotos,
+      seasonRegistrationPhotos: repositories.seasonRegistrationPhotos,
+      photoVersions: repositories.photoVersions,
+      photoApprovals: repositories.photoApprovals,
+      matchSheetPhotoSnapshots: repositories.matchSheetPhotoSnapshots,
+      photoAccessGrants: repositories.photoAccessGrants,
+      photoAuditEvents: repositories.photoAuditEvents,
+    }),
     recognitions: new RecognitionService({
       matchSheetsRepository: repositories.matchSheets,
       recognitionsRepository: repositories.recognitions,
@@ -91,5 +143,5 @@ export function createApplicationContainer(): ApplicationContainer {
     }),
   };
 
-  return { events, repositories, services };
+  return { events, repositories, services: completedServices, objectStores };
 }

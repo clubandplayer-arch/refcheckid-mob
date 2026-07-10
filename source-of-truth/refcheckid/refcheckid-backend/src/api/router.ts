@@ -78,6 +78,43 @@ export function createRestApiRouter(container: ApplicationContainer): ApiRouter 
   router.register('GET', '/api/v1/audit/by-match', controllers.listAuditByMatch);
   router.register('GET', '/api/v1/audit/by-action', controllers.listAuditByAction);
   router.register('GET', '/api/v1/photos', controllers.listPhotos);
+  router.register('GET', '/api/v1/photos/subjects', controllers.listPhotoSubjects);
+  router.register('GET', '/api/v1/players/:id/photo', controllers.getPlayerPhoto);
+  router.register(
+    'GET',
+    '/api/v1/registrations/:id/season-photo',
+    controllers.getRegistrationSeasonPhoto,
+  );
+  router.register('POST', '/api/v1/photos/upload-intent', controllers.createPhotoUploadIntent);
+  router.register('POST', '/api/v1/photos/uploads/:id/complete', controllers.completePhotoUpload);
+  router.register('GET', '/api/v1/photos/versions/:id', async (request) => ({
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+    body: await container.repositories.photoVersions.findById(request.params.id as never),
+  }));
+  router.register('GET', '/api/v1/photos/versions/:id/content', async (request) => ({
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+    body: await container.services.photos.createSignedReadUrl(
+      request.params.id as never,
+      { actorRole: 'admin', actorId: '00000000-0000-4000-8000-000000000099' },
+      {
+        rendition: request.query.rendition as never,
+        ttlSeconds: Number(request.query.ttlSeconds ?? 300),
+      },
+    ),
+  }));
+  router.register('GET', '/api/v1/photo-approvals', controllers.listPhotoApprovals);
+  router.register('GET', '/api/v1/photo-approvals/:id', controllers.getPhotoApproval);
+  router.register('POST', '/api/v1/photo-approvals/:id/approve', controllers.approvePhotoApproval);
+  router.register('POST', '/api/v1/photo-approvals/:id/reject', controllers.rejectPhotoApproval);
+  router.register(
+    'GET',
+    '/api/v1/match-sheets/:id/photo-snapshots',
+    controllers.listMatchSheetPhotoSnapshots,
+  );
+  router.register('GET', '/api/v1/matches/:id/photo-manifest', controllers.getMatchPhotoManifest);
+  router.register('GET', '/api/v1/photos/audit', controllers.listPhotoAuditEvents);
   router.register('GET', '/api/v1/identity-documents', controllers.listIdentityDocuments);
 
   return router;

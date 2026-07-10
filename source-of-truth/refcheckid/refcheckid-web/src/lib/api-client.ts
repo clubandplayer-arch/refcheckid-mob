@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from "./api-base-url";
 import { managerTeamConfig, getCurrentManagerTeam } from "./manager-team";
-import { applyManagerPhotoOverrides } from "./manager-photo-store";
+import { enrichPlayersWithBackendPhotos, enrichStaffWithBackendStatus } from "./manager-photo-backend";
 import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
 import {
   isSessionExpired,
@@ -35,6 +35,40 @@ export interface ApiReport {
   submittedAt: string | null;
   status: string;
   summary: string | null;
+}
+
+
+export type ApiManifestPhotoStatus = "missing" | "pending" | "active" | "rejected" | "suspended";
+export type ApiManifestSource = "live_manifest" | "frozen_snapshot";
+
+export interface ApiMatchPhotoManifestSubject {
+  id: string;
+  firstName: string;
+  lastName: string;
+  shirtNumber: number | null;
+  teamName: string;
+  roleLabel: string;
+  subjectKind: "player" | "staff";
+  photoUrl: string | null;
+  photoStatus: ApiManifestPhotoStatus;
+  photoEtag: string | null;
+  manifestSource: ApiManifestSource;
+  isFrozenSnapshot: boolean;
+  document: {
+    type: string;
+    number: string;
+    expiresAt: string;
+  };
+}
+
+export interface ApiMatchPhotoManifest {
+  matchId: string;
+  manifestVersion: string;
+  photoEtag: string;
+  generatedAt: string;
+  expiresAt: string | null;
+  status: "available" | "expired" | "unavailable";
+  subjects: readonly ApiMatchPhotoManifestSubject[];
 }
 
 export interface ApiPhoto {
@@ -98,21 +132,29 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const players = await request<readonly Record<string, unknown>[]>("/players");
   const managerTeam = getCurrentManagerTeam();
   const pilotRoster = managerTeam === "away" ? pilotAwayPlayers : pilotPlayers;
-  if (players.length === 0) return applyManagerPhotoOverrides(managerTeam, pilotRoster);
-  return applyManagerPhotoOverrides(managerTeam, players.map((player) => ({
+  const managerClubId = managerTeamConfig[managerTeam].clubId;
+  const registrations = await fetchPlayerRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`);
+  const registrationByPlayerId = new Map(registrations.map((registration) => [registration.playerId, registration]));
+  const mappedPlayers: readonly PlayerListItem[] = players.length === 0 ? pilotRoster : players.map((player) => {
+    const registration = registrationByPlayerId.get(String(player.id));
+    return {
     id: String(player.id),
     firstName: String(player.firstName ?? player.first_name ?? ""),
     lastName: String(player.lastName ?? player.last_name ?? ""),
-    photoUrl: String(player.photoUrl ?? player.photo_url ?? "/placeholder-player.svg"),
+    photoUrl: normalizePhotoUrl(player.photoUrl ?? player.photo_url),
+    registrationId: registration?.id ?? null,
+    season: registration?.season ?? null,
 	    warning: Boolean(player.warning ?? false),
 	    suspended: Boolean(player.suspended ?? false),
 	    selected: false,
 	    shirtNumber: null,
-	    role: "starter",
+	    role: "starter" as const,
 	    isGoalkeeper: false,
 	    isCaptain: false,
 	    isViceCaptain: false,
-	  })));
+	  };
+  });
+  return enrichPlayersWithBackendPhotos(managerTeam, mappedPlayers);
 }
 
 export async function fetchStaff(): Promise<readonly StaffListItem[]> {
@@ -120,8 +162,7 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
     await request<readonly Record<string, unknown>[]>("/staff-members");
   const managerTeam = getCurrentManagerTeam();
   const pilotRoster = managerTeam === "away" ? pilotAwayStaff : pilotStaff;
-  if (staff.length === 0) return applyManagerPhotoOverrides(managerTeam, pilotRoster);
-  return applyManagerPhotoOverrides(managerTeam, staff.map((staffMember) => ({
+  const mappedStaff: readonly StaffListItem[] = staff.length === 0 ? pilotRoster : staff.map((staffMember) => ({
     id: String(staffMember.id),
     fullName: String(
       staffMember.fullName ?? staffMember.full_name ?? staffMember.id,
@@ -129,7 +170,25 @@ export async function fetchStaff(): Promise<readonly StaffListItem[]> {
     role: String(staffMember.role ?? "staff"),
     photoUrl: staffMember.photoUrl ? String(staffMember.photoUrl) : null,
     selected: false,
-  })));
+  }));
+  return enrichStaffWithBackendStatus(managerTeam, mappedStaff);
+}
+
+export interface ApiPlayerRegistration {
+  id: string;
+  playerId: string;
+  clubId: string;
+  season: string;
+  status: string;
+}
+
+export function fetchPlayerRegistrations(query = ""): Promise<readonly ApiPlayerRegistration[]> {
+  return request<readonly ApiPlayerRegistration[]>(`/player-registrations${query}`);
+}
+
+function normalizePhotoUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0) return null;
+  return value === "/placeholder-player.svg" ? null : value;
 }
 
 export function fetchMatches(query = ""): Promise<readonly ApiMatch[]> {
@@ -159,6 +218,10 @@ export function fetchMatchReports(
 
 export function fetchPhotos(): Promise<readonly ApiPhoto[]> {
   return request<readonly ApiPhoto[]>("/photos");
+}
+
+export function fetchMatchPhotoManifest(matchId: string): Promise<ApiMatchPhotoManifest> {
+  return request<ApiMatchPhotoManifest>(`/matches/${encodeURIComponent(matchId)}/photo-manifest`);
 }
 
 export function submitMatchSheet(matchSheetId: string): Promise<ApiMatchSheet> {
