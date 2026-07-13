@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { roleRedirects } from "@/components/auth/auth-gate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,6 +19,7 @@ const errorMessages = {
 export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<AuthDiagnostics | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,13 +75,24 @@ export function LoginForm() {
         </View>
         <View style={styles.field}>
           <Text style={styles.label}>Password</Text>
-          <Input
-            autoComplete="current-password"
-            onChangeText={setPassword}
-            placeholder="Password"
-            secureTextEntry
-            value={password}
-          />
+          <View style={styles.passwordField}>
+            <Input
+              autoComplete="current-password"
+              onChangeText={setPassword}
+              placeholder="Password"
+              secureTextEntry={!isPasswordVisible}
+              style={styles.passwordInput}
+              value={password}
+            />
+            <Pressable
+              accessibilityLabel={isPasswordVisible ? "Nascondi password" : "Mostra password"}
+              accessibilityRole="button"
+              onPress={() => setIsPasswordVisible((current) => !current)}
+              style={styles.passwordToggle}
+            >
+              <Text style={styles.passwordToggleIcon}>{isPasswordVisible ? "🙈" : "👁️"}</Text>
+            </Pressable>
+          </View>
         </View>
         {error ? (
           <View style={styles.errorBox}>
@@ -112,5 +124,9 @@ const styles = StyleSheet.create({
   form: { gap: spacing.md },
   kicker: { color: colors.primary, fontSize: 14, fontWeight: "600" },
   label: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
+  passwordField: { position: "relative" },
+  passwordInput: { paddingRight: 56 },
+  passwordToggle: { alignItems: "center", bottom: 0, justifyContent: "center", minHeight: 48, paddingHorizontal: spacing.md, position: "absolute", right: 0, top: 0 },
+  passwordToggleIcon: { color: colors.mutedForeground, fontSize: 20 },
   title: { color: colors.foreground, fontSize: 24, fontWeight: "700", marginTop: spacing.xs },
 });

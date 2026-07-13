@@ -1,0 +1,13 @@
+import { readFileSync } from "node:fs";
+
+describe("Login password visibility UX", () => {
+  it("uses a secureTextEntry toggle without changing authentication calls", () => {
+    const source = readFileSync("src/features/auth/login-form.tsx", "utf8");
+
+    expect(source).toContain("isPasswordVisible");
+    expect(source).toContain("secureTextEntry={!isPasswordVisible}");
+    expect(source).toContain("Mostra password");
+    expect(source).toContain("Nascondi password");
+    expect(source).toContain("authenticateWithPassword({ email, password })");
+  });
+});
