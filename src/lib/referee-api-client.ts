@@ -12,7 +12,6 @@ import {
 import { managerTeamConfig } from "./manager-team";
 import { applyManagerPhotoOverrides } from "./manager-photo-store";
 import { getPhotoFeatureFlags } from "./photo-feature-flags";
-import { resolveRenderablePhotoUrl } from "./photo-url";
 import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
 import {
   buildPilotAwaySubmittedMatchSheetSnapshot,
@@ -63,11 +62,7 @@ export async function fetchRecognitionSubjects(matchId?: string): Promise<
   if (flags.refereeManifest && matchId) {
     const manifest = await fetchMatchPhotoManifest(matchId);
     if (manifest.status !== "available") return [];
-    return manifest.subjects.map((subject) => ({
-      ...subject,
-      decision: "pending",
-      photoUrl: resolveRenderablePhotoUrl(subject.photoUrl),
-    }));
+    return manifest.subjects.map((subject) => ({ ...subject, decision: "pending" }));
   }
   if (!flags.legacyLocalFallback) return [];
   const sheets = await fetchMatchSheets();

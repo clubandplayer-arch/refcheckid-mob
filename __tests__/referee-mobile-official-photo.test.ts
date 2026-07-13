@@ -13,7 +13,6 @@ describe("Referee Mobile ARCH-1 official photo workflow", () => {
     expect(apiClient).toContain("/matches/${encodeURIComponent(matchId)}/photo-manifest");
     expect(refereeClient).toContain("getPhotoFeatureFlags");
     expect(refereeClient).toContain("fetchMatchPhotoManifest(matchId)");
-    expect(refereeClient).toContain("resolveRenderablePhotoUrl(subject.photoUrl)");
     expect(refereeClient).toContain('manifest.status !== "available"');
     expect(refereeClient).not.toContain('/players/${encodeURIComponent');
     expect(refereeClient).not.toContain('/photo?rendition');
@@ -48,12 +47,4 @@ describe("Referee Mobile ARCH-1 official photo workflow", () => {
     expect(workflow).toContain('(currentSubject.photoStatus ?? "missing") === "active"');
   });
 
-  it("normalizes signed backend photo URLs before React Native rendering", () => {
-    const managerBackend = read("src/lib/manager-photo-backend.ts");
-    const refereeClient = read("src/lib/referee-api-client.ts");
-
-    expect(managerBackend).toContain("resolveRenderablePhotoUrl(signed.signedUrl?.url)");
-    expect(managerBackend).toContain("resolveRenderablePhotoUrl(legacyPhotoUrl)");
-    expect(refereeClient).toContain("resolveRenderablePhotoUrl(subject.photoUrl)");
-  });
 });

@@ -43,7 +43,6 @@ Differenze residue individuate prima della migrazione:
   - Cache query pinnata per la sessione di riconoscimento.
   - Prefetch temporaneo delle sole foto manifest con stato backend `active`.
   - Rendering foto vincolato a `photoStatus === "active"`.
-  - Normalizzazione mobile degli URL firmati backend relativi tramite `resolveRenderablePhotoUrl`, senza cambiare la Source of Truth.
   - UI metadata per stato foto, fonte manifest/snapshot e `photoEtag`.
 - `__tests__/referee-mobile-official-photo.test.ts`
   - Aggiunte regression guard per manifest, snapshot, cache, prefetch, offline e feature flag.
@@ -79,7 +78,7 @@ Il supporto offline mobile è limitato alla cache temporanea prevista da ARCH-1:
 - Query cache del manifest già caricato.
 - Image cache tramite `Image.prefetch(photoUrl)` per le foto backend attive.
 
-La cache non diventa mai Source of Truth e non ricostruisce dati in autonomia. Gli URL foto restano quelli forniti dal backend; il client mobile li converte solo in URI renderizzabili quando il backend restituisce path relativi.
+La cache non diventa mai Source of Truth e non ricostruisce dati in autonomia.
 
 ## Feature Flag
 
@@ -101,8 +100,3 @@ Feature flag esistenti riusati:
 
 - La verifica automatica completa non è stata eseguita a causa del blocco ambiente sulle dipendenze npm.
 - Il fallback legacy resta presente solo perché controllato da feature flag esistente; con `photos.refereeManifest=true` e manifest non disponibile non viene usato per ricostruire soggetti.
-
-
-## Follow-up fix — URL foto mobile
-
-La causa del placeholder con `photoStatus=active` era la differenza di runtime tra Web e React Native: il Web può risolvere URL relativi usando l'origin della pagina, mentre React Native richiede un URI assoluto (`http`, `https`, `file`, `content` o `data`). Il Match Photo Manifest backend può fornire `photoUrl` come path firmato relativo; il mapping mobile ora conserva il valore backend come Source of Truth semantica ma lo passa attraverso `resolveRenderablePhotoUrl` prima del rendering. Lo stesso allineamento è stato applicato agli URL firmati del Manager Mobile.

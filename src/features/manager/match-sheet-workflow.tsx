@@ -15,7 +15,6 @@ import {
   lineupRoleOptions,
   validateMatchSheet,
 } from "@/lib/match-sheet-validation";
-import { readManagerRawBackendPlayer, readManagerSignedPhotoPayload } from "@/lib/manager-photo-diagnostics";
 import { queryKeys, useApiMutation, useApiQuery, useInvalidateQueries } from "@/lib/query";
 import { saveManagerSubjectPhoto } from "@/lib/manager-photo-store";
 import { uploadOfficialSubjectPhoto } from "@/lib/manager-photo-backend";
@@ -273,23 +272,9 @@ function Screen({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 function PlayersStep({ onCancelPhoto, onConfirmPhoto, onPhotoDraft, onPhotoError, onPhotoTransform, photoDraft, photoError, players, query, setQuery, togglePlayer }: Readonly<{ onCancelPhoto: (id: string) => void; onConfirmPhoto: (id: string) => void; onPhotoDraft: (id: string, draft: Pick<PhotoDraft, "previewUrl" | "mimeType" | "sizeBytes"> | null) => void; onPhotoError: (message: string | null) => void; onPhotoTransform: (id: string, transform: Partial<Pick<PhotoDraft, "zoom" | "offsetX" | "offsetY">>) => void; photoDraft: PhotoDraft | null; photoError: string | null; players: readonly PlayerListItem[]; query: string; setQuery: (value: string) => void; togglePlayer: (id: string) => void }>) {
-  return <Card style={styles.section}><Text style={styles.cardTitle}>Compilazione distinta</Text><Text style={styles.body}>Ricerca giocatori, controlla foto, diffide, squalifiche e convocazione.</Text><PhotoApprovalNotice /><Input onChangeText={setQuery} placeholder="Cerca giocatore" value={query} />{players.length === 0 ? <EmptyState message="Nessun giocatore trovato." /> : players.map((player) => { const tone = getPlayerStatusTone(player); logManagerPlayerPhotoDiagnostics(player); return <View key={player.id} style={[styles.rowCard, tone === "warning" ? styles.warning : null, tone === "suspended" ? styles.suspended : null]}><View style={styles.rowText}><Text style={styles.name}>{player.lastName} {player.firstName}</Text><Text style={styles.body}>{player.warning ? "Diffida" : "Nessuna diffida"} · {player.suspended ? "Squalificato" : "Disponibile"}{!player.photoUrl ? " · Foto mancante" : ""}</Text>{(player.photo?.currentPhotoUrl ?? player.photoUrl) ? <Image accessibilityLabel={`Foto ${player.lastName} ${player.firstName}`} source={{ uri: player.photo?.currentPhotoUrl ?? player.photoUrl ?? "" }} style={styles.photo} /> : <View style={styles.photoPlaceholder}><Text style={styles.body}>Foto</Text></View>}<BackendPhotoStatus photo={player.photo} /></View><PhotoComparison currentPhotoUrl={player.photo?.currentPhotoUrl ?? player.photoUrl} proposedPhotoUrl={player.photo?.proposedPhotoUrl ?? null} /><PhotoCaptureControls currentPhotoUrl={player.photo?.currentPhotoUrl ?? player.photoUrl} onCancel={() => onCancelPhoto(player.id)} onConfirm={() => onConfirmPhoto(player.id)} onPhotoDraft={(draft) => onPhotoDraft(player.id, draft)} onPhotoError={onPhotoError} onPhotoTransform={(transform) => onPhotoTransform(player.id, transform)} photoDraft={photoDraft?.id === player.id ? photoDraft : null} photoError={photoError} subjectLabel={`${player.lastName} ${player.firstName}`} /><Button disabled={player.suspended} onPress={() => togglePlayer(player.id)}>{player.selected ? "Rimuovi" : "Convoca"}</Button></View>; })}</Card>;
+  return <Card style={styles.section}><Text style={styles.cardTitle}>Compilazione distinta</Text><Text style={styles.body}>Ricerca giocatori, controlla foto, diffide, squalifiche e convocazione.</Text><PhotoApprovalNotice /><Input onChangeText={setQuery} placeholder="Cerca giocatore" value={query} />{players.length === 0 ? <EmptyState message="Nessun giocatore trovato." /> : players.map((player) => { const tone = getPlayerStatusTone(player); return <View key={player.id} style={[styles.rowCard, tone === "warning" ? styles.warning : null, tone === "suspended" ? styles.suspended : null]}><View style={styles.rowText}><Text style={styles.name}>{player.lastName} {player.firstName}</Text><Text style={styles.body}>{player.warning ? "Diffida" : "Nessuna diffida"} · {player.suspended ? "Squalificato" : "Disponibile"}{!player.photoUrl ? " · Foto mancante" : ""}</Text>{(player.photo?.currentPhotoUrl ?? player.photoUrl) ? <Image accessibilityLabel={`Foto ${player.lastName} ${player.firstName}`} source={{ uri: player.photo?.currentPhotoUrl ?? player.photoUrl ?? "" }} style={styles.photo} /> : <View style={styles.photoPlaceholder}><Text style={styles.body}>Foto</Text></View>}<BackendPhotoStatus photo={player.photo} /></View><PhotoComparison currentPhotoUrl={player.photo?.currentPhotoUrl ?? player.photoUrl} proposedPhotoUrl={player.photo?.proposedPhotoUrl ?? null} /><PhotoCaptureControls currentPhotoUrl={player.photo?.currentPhotoUrl ?? player.photoUrl} onCancel={() => onCancelPhoto(player.id)} onConfirm={() => onConfirmPhoto(player.id)} onPhotoDraft={(draft) => onPhotoDraft(player.id, draft)} onPhotoError={onPhotoError} onPhotoTransform={(transform) => onPhotoTransform(player.id, transform)} photoDraft={photoDraft?.id === player.id ? photoDraft : null} photoError={photoError} subjectLabel={`${player.lastName} ${player.firstName}`} /><Button disabled={player.suspended} onPress={() => togglePlayer(player.id)}>{player.selected ? "Rimuovi" : "Convoca"}</Button></View>; })}</Card>;
 }
 
-function logManagerPlayerPhotoDiagnostics(player: PlayerListItem): void {
-  const signedPayload = readManagerSignedPhotoPayload(player.id) as { signedUrl?: { url?: string } } | null;
-  console.log("[RefCheckID][ManagerMobile][PlayerPhotoDiagnostics]", {
-    id: player.id,
-    firstName: player.firstName,
-    lastName: player.lastName,
-    photoStatus: player.photo?.status ?? null,
-    photoUrl: player.photoUrl ?? null,
-    currentPhotoUrl: player.photo?.currentPhotoUrl ?? null,
-    signedUrl: signedPayload?.signedUrl?.url ?? null,
-    photo: player.photo ?? null,
-    rawBackendPlayer: readManagerRawBackendPlayer(player.id),
-  });
-}
 
 function BackendPhotoStatus({ photo }: Readonly<{ photo: PlayerListItem["photo"] | StaffListItem["photo"] }>) {
   const status = photo?.status ?? "missing";
