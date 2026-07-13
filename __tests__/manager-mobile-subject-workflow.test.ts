@@ -33,4 +33,18 @@ describe("Manager Mobile ARCH-1 subject workflow", () => {
     expect(backend).not.toContain("playerId: input.subjectId");
     expect(backend).not.toContain("staffMemberId: input.subjectId");
   });
+
+  it("keeps manager mobile official-photo read mapping aligned with Manager Web", () => {
+    const apiClient = read("src/lib/api-client.ts");
+    const backend = read("src/lib/manager-photo-backend.ts");
+    const workflow = read("src/features/manager/match-sheet-workflow.tsx");
+
+    expect(apiClient).toContain("fetchPlayerRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`).catch");
+    expect(apiClient).toContain('return value === "/placeholder-player.svg" ? null : value;');
+    expect(backend).toContain("currentPhotoUrl = signed.signedUrl?.url ?? null");
+    expect(backend).toContain("if (flags.legacyLocalFallback) currentPhotoUrl = legacyPhotoUrl");
+    expect(backend).toContain("return signed.signedUrl?.url ?? null");
+    expect(workflow).not.toContain("PlayerPhotoDiagnostics");
+  });
+
 });

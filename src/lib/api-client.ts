@@ -2,7 +2,6 @@ import { getApiBaseUrl } from "./api-base-url";
 import { managerTeamConfig, getCurrentManagerTeam } from "./manager-team";
 import { enrichPlayersWithBackendPhotos, enrichStaffWithBackendStatus } from "./manager-photo-backend";
 import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
-import { resolveRenderablePhotoUrl } from "./photo-url";
 import {
   isSessionExpired,
   removeStoredSession,
@@ -37,6 +36,39 @@ export interface ApiReport {
   submittedAt: string | null;
   status: string;
   summary: string | null;
+}
+
+export type ApiManifestPhotoStatus = "missing" | "pending" | "active" | "rejected" | "suspended";
+export type ApiManifestSource = "live_manifest" | "frozen_snapshot";
+
+export interface ApiMatchPhotoManifestSubject {
+  id: string;
+  firstName: string;
+  lastName: string;
+  shirtNumber: number | null;
+  teamName: string;
+  roleLabel: string;
+  subjectKind: "player" | "staff";
+  photoUrl: string | null;
+  photoStatus: ApiManifestPhotoStatus;
+  photoEtag: string | null;
+  manifestSource: ApiManifestSource;
+  isFrozenSnapshot: boolean;
+  document: {
+    type: string;
+    number: string;
+    expiresAt: string;
+  };
+}
+
+export interface ApiMatchPhotoManifest {
+  matchId: string;
+  manifestVersion: string;
+  photoEtag: string;
+  generatedAt: string;
+  expiresAt: string | null;
+  status: "available" | "expired" | "unavailable";
+  subjects: readonly ApiMatchPhotoManifestSubject[];
 }
 
 export interface ApiPhoto {
@@ -178,7 +210,7 @@ export function fetchStaffRegistrations(query = ""): Promise<readonly ApiStaffRe
 
 function normalizePhotoUrl(value: unknown): string | null {
   if (typeof value !== "string" || value.length === 0) return null;
-  return value === "/placeholder-player.svg" ? null : resolveRenderablePhotoUrl(value);
+  return value === "/placeholder-player.svg" ? null : value;
 }
 
 export function fetchMatches(query = ""): Promise<readonly ApiMatch[]> {
@@ -208,6 +240,10 @@ export function fetchMatchReports(
 
 export function fetchPhotos(): Promise<readonly ApiPhoto[]> {
   return request<readonly ApiPhoto[]>("/photos");
+}
+
+export function fetchMatchPhotoManifest(matchId: string): Promise<ApiMatchPhotoManifest> {
+  return request<ApiMatchPhotoManifest>(`/matches/${encodeURIComponent(matchId)}/photo-manifest`);
 }
 
 export function submitMatchSheet(matchSheetId: string): Promise<ApiMatchSheet> {
