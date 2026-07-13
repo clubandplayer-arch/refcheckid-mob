@@ -1,4 +1,4 @@
-import { request } from "./api-client";
+import { request } from "./api-request";
 import { applyManagerPhotoOverrides } from "./manager-photo-store";
 import type { ManagerTeam } from "./manager-team";
 import { getPhotoFeatureFlags } from "./photo-feature-flags";
