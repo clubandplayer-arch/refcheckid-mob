@@ -9,5 +9,11 @@ describe("Login password visibility UX", () => {
     expect(source).toContain("Mostra password");
     expect(source).toContain("Nascondi password");
     expect(source).toContain("authenticateWithPassword({ email, password })");
+    expect(source).toContain("[RefCheckID][Auth][LoginRequest]");
+    expect(source).toContain("[RefCheckID][Auth][LoginError]");
+    expect(source).toContain("payload: safePayload");
+    expect(source).toContain("diagnostics?.status");
+    expect(source).toContain("diagnostics?.responseBody");
+    expect(source).toContain("submitError.stack");
   });
 });
