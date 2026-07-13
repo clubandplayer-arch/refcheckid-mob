@@ -39,7 +39,7 @@ describe("Manager Mobile ARCH-1 subject workflow", () => {
     const backend = read("src/lib/manager-photo-backend.ts");
     const workflow = read("src/features/manager/match-sheet-workflow.tsx");
 
-    expect(apiClient).toContain("fetchPlayerRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`)");
+    expect(apiClient).toContain("fetchPlayerRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`).catch");
     expect(apiClient).toContain('return value === "/placeholder-player.svg" ? null : value;');
     expect(backend).toContain("currentPhotoUrl = signed.signedUrl?.url ?? null");
     expect(backend).toContain("if (flags.legacyLocalFallback) currentPhotoUrl = legacyPhotoUrl");

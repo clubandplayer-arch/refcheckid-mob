@@ -137,7 +137,7 @@ export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const managerTeam = getCurrentManagerTeam();
   const pilotRoster = managerTeam === "away" ? pilotAwayPlayers : pilotPlayers;
   const managerClubId = managerTeamConfig[managerTeam].clubId;
-  const registrations = await fetchPlayerRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`);
+  const registrations = await fetchPlayerRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`).catch(() => [] as readonly ApiPlayerRegistration[]);
   const registrationByPlayerId = new Map(registrations.map((registration) => [registration.playerId, registration]));
   const mappedPlayers: readonly PlayerListItem[] = players.length === 0 ? pilotRoster : players.map((player) => {
     const registration = registrationByPlayerId.get(String(player.id));
