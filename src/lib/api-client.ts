@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from "./api-base-url";
 import { managerTeamConfig, getCurrentManagerTeam } from "./manager-team";
 import { enrichPlayersWithBackendPhotos, enrichStaffWithBackendStatus } from "./manager-photo-backend";
+import { registerManagerRawBackendPlayers } from "./manager-photo-diagnostics";
 import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
 import { resolveRenderablePhotoUrl } from "./photo-url";
 import {
@@ -135,6 +136,7 @@ function toManagerStatusNotification(status: ApiMatchSheet["status"]): string {
 
 export async function fetchPlayers(): Promise<readonly PlayerListItem[]> {
   const players = await request<readonly Record<string, unknown>[]>("/players");
+  registerManagerRawBackendPlayers(players);
   const managerTeam = getCurrentManagerTeam();
   const pilotRoster = managerTeam === "away" ? pilotAwayPlayers : pilotPlayers;
   const managerClubId = managerTeamConfig[managerTeam].clubId;

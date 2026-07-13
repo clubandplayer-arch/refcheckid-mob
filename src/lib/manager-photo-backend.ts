@@ -1,4 +1,5 @@
 import { request } from "./api-client";
+import { registerManagerSignedPhotoPayload } from "./manager-photo-diagnostics";
 import { applyManagerPhotoOverrides } from "./manager-photo-store";
 import type { ManagerTeam } from "./manager-team";
 import { getPhotoFeatureFlags } from "./photo-feature-flags";
@@ -57,6 +58,7 @@ export async function readBackendPhotoState(subjectKind: "athlete" | "staff_memb
   try {
     const endpoint = subjectKind === "staff_member" ? "staff-members" : "players";
     const signed = await request<SignedReadResponse>(`/${endpoint}/${encodeURIComponent(subjectId)}/photo?rendition=normalized&ttlSeconds=300`);
+    registerManagerSignedPhotoPayload(subjectId, signed);
     currentPhotoUrl = resolveRenderablePhotoUrl(signed.signedUrl?.url);
     currentStatus = signed.version?.status === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
   } catch {
