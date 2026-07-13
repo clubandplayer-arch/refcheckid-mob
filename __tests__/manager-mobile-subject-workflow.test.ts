@@ -30,8 +30,8 @@ describe("Manager Mobile ARCH-1 subject workflow", () => {
     expect(backend).toContain('/photos/uploads/${encodeURIComponent(uploadId)}/complete');
     expect(backend).toContain("readBackendPhotoState");
     expect(backend).toContain("proposedPhotoUrl");
-    expect(backend).not.toContain("playerId: input.subjectId");
-    expect(backend).not.toContain("staffMemberId: input.subjectId");
+    expect(backend).toContain("playerId: input.subjectId");
+    expect(backend).toContain("staffMemberId: input.subjectId");
   });
 
   it("keeps manager mobile official-photo read mapping aligned with Manager Web", () => {
@@ -44,6 +44,8 @@ describe("Manager Mobile ARCH-1 subject workflow", () => {
     expect(backend).toContain("currentPhotoUrl = signed.signedUrl?.url ?? null");
     expect(backend).toContain("if (flags.legacyLocalFallback) currentPhotoUrl = legacyPhotoUrl");
     expect(backend).toContain("return signed.signedUrl?.url ?? null");
+    expect(workflow).toContain("resolveRenderablePhotoUrl");
+    expect(workflow).toContain("function SubjectPhoto");
     expect(workflow).not.toContain("PlayerPhotoDiagnostics");
   });
 
