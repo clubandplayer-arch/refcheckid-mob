@@ -2,6 +2,7 @@ import { request } from "./api-client";
 import { applyManagerPhotoOverrides } from "./manager-photo-store";
 import type { ManagerTeam } from "./manager-team";
 import { getPhotoFeatureFlags } from "./photo-feature-flags";
+import { resolveRenderablePhotoUrl } from "./photo-url";
 import type { PlayerListItem, StaffListItem } from "./types";
 
 export type OfficialPhotoStatus = "missing" | "pending" | "active" | "rejected" | "suspended";
@@ -56,10 +57,10 @@ export async function readBackendPhotoState(subjectKind: "athlete" | "staff_memb
   try {
     const endpoint = subjectKind === "staff_member" ? "staff-members" : "players";
     const signed = await request<SignedReadResponse>(`/${endpoint}/${encodeURIComponent(subjectId)}/photo?rendition=normalized&ttlSeconds=300`);
-    currentPhotoUrl = signed.signedUrl?.url ?? null;
+    currentPhotoUrl = resolveRenderablePhotoUrl(signed.signedUrl?.url);
     currentStatus = signed.version?.status === "suspended" ? "suspended" : currentPhotoUrl ? "active" : "missing";
   } catch {
-    if (flags.legacyLocalFallback) currentPhotoUrl = legacyPhotoUrl;
+    if (flags.legacyLocalFallback) currentPhotoUrl = resolveRenderablePhotoUrl(legacyPhotoUrl);
     currentStatus = currentPhotoUrl ? "active" : "missing";
   }
   const approval = registrationId ? await readLatestApproval(registrationId) : null;
@@ -126,7 +127,7 @@ async function readLatestApproval(registrationId: string): Promise<ApprovalRespo
 
 async function readVersionUrl(versionId: string): Promise<string | null> {
   const signed = await request<SignedReadResponse>(`/photos/versions/${encodeURIComponent(versionId)}/content?rendition=normalized&ttlSeconds=300`);
-  return signed.signedUrl?.url ?? null;
+  return resolveRenderablePhotoUrl(signed.signedUrl?.url);
 }
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {
