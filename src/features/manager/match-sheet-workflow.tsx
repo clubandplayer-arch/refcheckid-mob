@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   backendStatus: { alignSelf: "flex-start", borderRadius: radii.lg, fontSize: 11, fontWeight: "700", overflow: "hidden", paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
   buttonRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   comparisonBox: { backgroundColor: "#fffbeb", borderColor: "#fcd34d", borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.sm },
-  comparisonPhoto: { borderRadius: radii.sm, height: 48, width: 36 },
+  comparisonPhoto: { borderRadius: radii.md, height: 48, width: 36 },
   comparisonRow: { alignItems: "center", flexDirection: "row", gap: spacing.sm },
   cardTitle: { color: colors.foreground, fontSize: 18, fontWeight: "700" },
   header: { gap: spacing.sm },

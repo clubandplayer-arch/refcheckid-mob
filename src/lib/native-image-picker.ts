@@ -1,18 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
 
-type ImagePickerAsset = {
-  readonly base64?: string | null;
-  readonly fileSize?: number | null;
-  readonly mimeType?: string | null;
-  readonly type?: string | null;
-  readonly uri?: string | null;
-};
-
-type ImagePickerResult = {
-  readonly assets?: readonly ImagePickerAsset[] | null;
-  readonly canceled?: boolean;
-};
-
 export type NativePhotoDraft = {
   readonly mimeType: string;
   readonly previewUrl: string;
@@ -31,7 +18,7 @@ export async function choosePhotoFromLibrary(): Promise<NativePhotoDraft | null>
   return pickPhoto(() => ImagePicker.launchImageLibraryAsync(buildImagePickerOptions()));
 }
 
-async function pickPhoto(launch: () => Promise<ImagePickerResult>): Promise<NativePhotoDraft | null> {
+async function pickPhoto(launch: () => Promise<ImagePicker.ImagePickerResult>): Promise<NativePhotoDraft | null> {
   const result = await launch();
   if (result.canceled) return null;
   const asset = result.assets?.[0];
@@ -43,7 +30,7 @@ async function pickPhoto(launch: () => Promise<ImagePickerResult>): Promise<Nati
   };
 }
 
-function buildImagePickerOptions() {
+function buildImagePickerOptions(): ImagePicker.ImagePickerOptions {
   return {
     allowsEditing: true,
     base64: true,

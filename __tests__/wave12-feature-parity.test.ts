@@ -107,6 +107,8 @@ function validPlayers(): PlayerListItem[] {
     isViceCaptain: index === 2,
     lastName: `Cognome${index + 1}`,
     photoUrl: null,
+    registrationId: null,
+    season: null,
     role: "starter",
     selected: true,
     shirtNumber: index + 1,
@@ -116,7 +118,7 @@ function validPlayers(): PlayerListItem[] {
 }
 
 function staffMember(): StaffListItem {
-  return { fullName: "Mario Rossi", id: "staff-1", photoUrl: null, role: "Allenatore", selected: true };
+  return { fullName: "Mario Rossi", id: "staff-1", photoUrl: null, registrationId: null, season: null, role: "Allenatore", selected: true };
 }
 
 function validReport(): MatchReportDraft {
