@@ -30,6 +30,8 @@ const storageKey = "refcheckid.session";
 let memorySession: string | null = null;
 let refreshInProgress: { token: string; promise: Promise<AppSession | null> } | null = null;
 
+const invalidationListeners = new Set<() => void>();
+
 interface SessionContextValue {
   session: AppSession | null;
   isReady: boolean;
@@ -48,7 +50,13 @@ export function SessionProvider({ children }: Readonly<{ children: React.ReactNo
   useEffect(() => {
     setSession(readStoredSession());
     setIsReady(true);
-  }, []);
+    const invalidate = () => {
+      queryClient.clear();
+      setSession(null);
+    };
+    invalidationListeners.add(invalidate);
+    return () => { invalidationListeners.delete(invalidate); };
+  }, [queryClient]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
@@ -101,6 +109,12 @@ export function removeStoredSession(): void {
   removeStorageItem(storageKey);
 }
 
+export function invalidateSession(accessToken: string) {
+  if (readStoredSession()?.accessToken !== accessToken) return;
+  removeStoredSession();
+  invalidationListeners.forEach((listener) => listener());
+}
+
 export function isSessionExpired(session: AppSession): boolean {
   return Date.parse(session.expiresAt) <= Date.now();
 }
@@ -119,7 +133,7 @@ export async function resolveActiveSession(): Promise<AppSession | null> {
       writeStoredSession(refreshed);
       return refreshed;
     }
-    removeStoredSession();
+    invalidateSession(session.accessToken);
     return null;
   }).finally(() => {
     if (refreshInProgress?.promise === promise) refreshInProgress = null;
@@ -135,14 +149,15 @@ async function refreshStoredSession(refreshToken: string): Promise<AppSession | 
     body: JSON.stringify({ refreshToken }),
   });
 
-  if (!response.ok) return null;
+  if ([400, 401, 403].includes(response.status)) return null;
+  if (!response.ok) throw new Error(`Rinnovo sessione non riuscito (HTTP ${response.status}).`);
   const session = (await response.json()) as AppSession;
   return isValidSession(session) ? session : null;
 }
 
 export function isValidSession(session: AppSession): boolean {
   return Boolean(
-    session.accessToken &&
+    session?.accessToken &&
       session.refreshToken &&
       session.expiresAt &&
       session.user?.id &&

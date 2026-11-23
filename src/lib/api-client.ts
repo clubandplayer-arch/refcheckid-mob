@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from "./api-base-url";
 import {
   hasAppRole,
+  invalidateSession,
   readStoredSession,
   resolveActiveSession,
 } from "./session";
@@ -353,6 +354,7 @@ export async function request<TResponse>(
   });
 
   if (!response.ok) {
+    if (response.status === 401 && activeSession) invalidateSession(activeSession.accessToken);
     const body = await response.json().catch(() => null) as { message?: unknown; error?: unknown } | null;
     const message = body?.message ?? body?.error;
     throw new ApiRequestError(response.status, typeof message === "string" ? message : `Richiesta non riuscita (HTTP ${response.status}).`);

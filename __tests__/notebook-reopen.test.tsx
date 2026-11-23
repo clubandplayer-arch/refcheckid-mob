@@ -2,12 +2,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Notebook } from "@/features/referee/notebook";
+import { ApiRequestError } from "@/lib/api-client";
 import { fetchNotebook, postPeriod, type PeriodUpdate } from "@/lib/referee-platform";
 
 jest.mock("@react-native-async-storage/async-storage", () =>
   jest.requireActual("@react-native-async-storage/async-storage/jest/async-storage-mock"));
 jest.mock("expo-crypto", () => ({ randomUUID: () => "stable-op" }));
-jest.mock("@/lib/session", () => ({ useSession: () => ({ session: { user: { id: "referee" } } }) }));
+let mockUserId = "referee";
+jest.mock("@/lib/session", () => ({ useSession: () => ({ session: { user: { id: mockUserId } } }) }));
 jest.mock("@/lib/api-client", () => ({
   ...jest.requireActual("@/lib/api-client"),
   request: jest.fn(async () => ({ items: [], nextCursor: null })),
@@ -29,6 +31,7 @@ it("reopens a persisted unconfirmed operation and sends exactly the original pay
   jest.mocked(fetchNotebook).mockResolvedValue({ game, role: "principal" });
   jest.mocked(postPeriod)
     .mockRejectedValueOnce(new Error("Rete caduta"))
+    .mockRejectedValueOnce(new ApiRequestError(401, "Sessione scaduta"))
     .mockResolvedValueOnce({ revision: 1, period: 1, state: "provisional", homeScore: 0, awayScore: 0 });
   await AsyncStorage.clear();
 
@@ -40,11 +43,26 @@ it("reopens a persisted unconfirmed operation and sends exactly the original pay
   expect(saved.pending).toMatchObject({ operationId: "stable-op", revision: 0 });
   initial.unmount();
 
+  const expired = openNotebook();
+  await screen.findByText("In attesa di sincronizzazione");
+  fireEvent.press(screen.getByText("Riprova invio salvato"));
+  await screen.findByText("Sessione scaduta");
+  expect(await AsyncStorage.getItem(storageKey)).toBe(JSON.stringify(saved));
+  expired.unmount();
+
+  mockUserId = "other-referee";
+  const other = openNotebook();
+  await screen.findByText("Invia aggiornamento provvisorio");
+  expect(screen.queryByText("In attesa di sincronizzazione")).toBeNull();
+  expect(await AsyncStorage.getItem(storageKey)).toBe(JSON.stringify(saved));
+  other.unmount();
+
+  mockUserId = "referee";
   openNotebook();
   await screen.findByText("In attesa di sincronizzazione");
   fireEvent.press(screen.getByText("Riprova invio salvato"));
   await screen.findByText("Confermata dal server · revisione 1");
-  expect(jest.mocked(postPeriod).mock.calls).toEqual([["fixture", saved.pending], ["fixture", saved.pending]]);
+  expect(jest.mocked(postPeriod).mock.calls).toEqual(Array.from({ length: 3 }, () => ["fixture", saved.pending]));
   expect(await AsyncStorage.getItem(storageKey)).toBeNull();
 });
 
