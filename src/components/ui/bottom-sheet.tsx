@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii, spacing } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ export function BottomSheet({ children, onClose, title, visible }: BottomSheetPr
   const insets = useSafeAreaInsets();
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.overlay}>
         <Pressable accessibilityLabel="Chiudi pannello" accessibilityRole="button" onPress={onClose} style={styles.backdrop} />
         <View
           accessibilityViewIsModal
@@ -25,9 +25,9 @@ export function BottomSheet({ children, onClose, title, visible }: BottomSheetPr
             <Text style={styles.title}>{title}</Text>
             <Button onPress={onClose}>Chiudi</Button>
           </View>
-          <View style={styles.content}>{children}</View>
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">{children}</ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

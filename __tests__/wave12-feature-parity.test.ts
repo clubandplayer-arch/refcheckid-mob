@@ -24,17 +24,13 @@ describe("Wave 12 final feature parity hardening", () => {
 
   it("keeps all Web data domains represented by stable query keys for invalidation", () => {
     expect(JSON.stringify(Object.keys(queryKeys).sort())).toBe(JSON.stringify([
-      "audit",
-      "federation",
       "manager",
       "matchReports",
       "matchSheets",
-      "matches",
       "photos",
-      "players",
       "recognitions",
       "referees",
-      "staff",
+      "roster",
     ]));
   });
 

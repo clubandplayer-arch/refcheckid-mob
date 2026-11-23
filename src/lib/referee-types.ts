@@ -8,12 +8,14 @@ export type SheetVerificationStatus = "locked" | "submitted" | "missing";
 export type RecognitionDecision = "pending" | "approved" | "rejected";
 
 export interface RefereeDashboard {
+  games: readonly RefereeMatchSummary[];
   nextMatch: RefereeMatchSummary | null;
   notifications: readonly string[];
 }
 
 export interface RefereeMatchSummary {
   id: string;
+  platformFixtureId?: string;
   homeTeam: string;
   awayTeam: string;
   scheduledAt: string;

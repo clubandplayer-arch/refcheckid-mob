@@ -1,5 +1,7 @@
 # RefCheckID Mobile – baseline e collaudo su dispositivo
 
+Documento storico della baseline. Per i contratti correnti e il collaudo usa [Allineamento web → mobile](WEB_MOBILE_ALIGNMENT.md).
+
 Il tag annotato locale `mobile-baseline-2026-11-23` punta a `1942b239cab679daff5110b6a96fdece7bf9e360`, lo stato del checkout prima delle correzioni. Il riferimento funzionale esaminato è [RefCheckID main a 2685da9](https://github.com/clubandplayer-arch/refcheckid/tree/2685da9214854e29a8ff4a3a2f339c5d9322c2b7). Per il collaudo usare il backend RefCheckID di staging condiviso con il portale web e il relativo dataset.
 
 ## Verifica locale

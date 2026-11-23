@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { router } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +15,12 @@ import {
   fetchRefereeDashboard,
   fetchRefereeMatchSheets,
   lockSubmittedSheetsAndStartRecognition,
-  submitRefereeReport,
+  writeRefereeReport,
+  saveRecognitionDecision,
+  fetchRecognitionWorkflow,
 } from "@/lib/referee-api-client";
 import type { MatchReportDraft, MatchReportEvent, RecognitionDecision, RecognitionSubject, TeamSheetVerification } from "@/lib/referee-types";
 import { useSession } from "@/lib/session";
-import { saveSubmittedFederationReport } from "@/lib/submitted-report";
 import {
   cautionReasons,
   countGoalsByTeam,
@@ -35,14 +37,14 @@ const steps = ["Distinte", "Riconoscimento", "Referto"] as const;
 
 const manifestQueryOptions = {
   refetchInterval: false,
-  refetchOnMount: false,
-  refetchOnReconnect: false,
+  refetchOnMount: true,
+  refetchOnReconnect: true,
   refetchOnWindowFocus: false,
   retry: false,
-  staleTime: Number.POSITIVE_INFINITY,
+  staleTime: 60_000,
 } as const;
 
-export function RefereeMatchWorkflow() {
+export function RefereeMatchWorkflow({ requestedMatchId }: { requestedMatchId: string }) {
   const [step, setStep] = useState(0);
   const [initialRecognitionTeamName, setInitialRecognitionTeamName] = useState<string | null>(null);
   const [recognitionClosed, setRecognitionClosed] = useState(false);
@@ -53,18 +55,24 @@ export function RefereeMatchWorkflow() {
     fetchRefereeDashboard,
     { enabled: Boolean(session) },
   );
-  const matchId = dashboardQuery.data?.nextMatch?.id ?? "";
+  const selectedMatch = dashboardQuery.data?.games.find((game) => game.id === requestedMatchId);
+  const matchId = selectedMatch?.id ?? "";
+  const workflowQuery = useApiQuery([...queryKeys.recognitions, matchId, "workflow"],
+    () => fetchRecognitionWorkflow(matchId), { enabled: !!matchId, retry: false });
+  const locked = recognitionClosed || workflowQuery.data?.status === "locked";
 
   if (!session) return <ErrorState message="Sessione richiesta." />;
   if (dashboardQuery.isLoading) return <SkeletonBlock />;
   if (dashboardQuery.isError) {
     return <ErrorState message={dashboardQuery.error?.message ?? "Errore sconosciuto"} onRetry={() => void dashboardQuery.refetch()} />;
   }
-  if (!matchId) return <EmptyState message="Nessuna gara assegnata." />;
+  if (!matchId) return <EmptyState message="Gara non assegnata o non disponibile." />;
+  if (workflowQuery.isLoading) return <SkeletonBlock />;
+  if (workflowQuery.isError) return <ErrorState message={workflowQuery.error.message} onRetry={() => void workflowQuery.refetch()} />;
 
   return (
     <View style={styles.workflow}>
-      <RefereeWorkflowStepper currentStep={step} recognitionClosed={recognitionClosed} onChangeStep={setStep} />
+      <RefereeWorkflowStepper currentStep={step} recognitionClosed={locked && step === 2} onChangeStep={setStep} />
 
       {step === 0 ? (
         <SheetVerificationStep
@@ -78,7 +86,7 @@ export function RefereeMatchWorkflow() {
       {step === 1 ? (
         <RecognitionStep
           initialTeamName={initialRecognitionTeamName}
-          isLocked={recognitionClosed}
+          isLocked={locked}
           matchId={matchId}
           onComplete={() => {
             setFullRecognitionComplete(true);
@@ -88,9 +96,11 @@ export function RefereeMatchWorkflow() {
         />
       ) : null}
       {step === 2 ? (
-        <MatchReportStep fullRecognitionComplete={fullRecognitionComplete} matchId={matchId} />
+        selectedMatch?.platformFixtureId
+          ? <Button onPress={() => router.push({ pathname: "/referee/notebook", params: { fixtureId: selectedMatch.platformFixtureId } })}>Apri taccuino digitale</Button>
+          : <MatchReportStep fullRecognitionComplete={fullRecognitionComplete || locked} matchId={matchId} />
       ) : null}
-      <RefereeWorkflowStepper currentStep={step} recognitionClosed={recognitionClosed} onChangeStep={setStep} />
+      <RefereeWorkflowStepper currentStep={step} recognitionClosed={locked && step === 2} onChangeStep={setStep} />
     </View>
   );
 }
@@ -213,8 +223,7 @@ function RecognitionStep({
   const invalidate = useInvalidateQueries();
   const [selectedTeamName, setSelectedTeamName] = useState<string | null>(initialTeamName);
   const [showDocument, setShowDocument] = useState(false);
-  const [decisions, setDecisions] = useState<Record<string, RecognitionDecision>>({});
-  const [decisionOrder, setDecisionOrder] = useState<readonly string[]>([]);
+  const [decisionNotes, setDecisionNotes] = useState("");
   const [isRecognitionClosed, setIsRecognitionClosed] = useState(isLocked);
   const query = useApiQuery(
     [...queryKeys.recognitions, matchId],
@@ -231,6 +240,16 @@ function RecognitionStep({
       toast.notify("Riconoscimento chiuso.", "success");
       onComplete();
     },
+  });
+  const decisionLock = useRef(false);
+  const decisionMutation = useApiMutation(({ id, decision, notes }: { id: string; decision: RecognitionDecision; notes: string }) =>
+    saveRecognitionDecision(matchId, id, decision, notes), {
+    async onSuccess() {
+      await query.refetch();
+      setShowDocument(false);
+      setDecisionNotes("");
+    },
+    onError(error) { toast.notify(error.message, "error"); },
   });
   const allSubjects = useMemo(() => query.data ?? [], [query.data]);
   useEffect(() => {
@@ -249,15 +268,11 @@ function RecognitionStep({
   const selectedTeamSubjects = activeTeamName
     ? allSubjects.filter((subject) => subject.teamName === activeTeamName)
     : allSubjects;
-  const currentSubject = selectedTeamSubjects.find((subject) => !decisions[subject.id]) ?? null;
-  const selectedTeamCompletedCount = selectedTeamSubjects.filter((subject) => decisions[subject.id]).length;
+  const currentSubject = selectedTeamSubjects.find((subject) => subject.decision === "pending") ?? null;
+  const selectedTeamCompletedCount = selectedTeamSubjects.filter((subject) => subject.decision !== "pending").length;
   const selectedTeamTotal = selectedTeamSubjects.length;
-  const currentTeamDecisionOrder = decisionOrder.filter((subjectId) => {
-    const subject = allSubjects.find((item) => item.id === subjectId);
-    return subject?.teamName === activeTeamName;
-  });
-  const completedCount = decisionOrder.length;
-  const recognizedSubjects = allSubjects.filter((subject) => decisions[subject.id]);
+  const recognizedSubjects = allSubjects.filter((subject) => subject.decision !== "pending");
+  const completedCount = recognizedSubjects.length;
   const recognizedTeams = new Set(recognizedSubjects.map((subject) => subject.teamName));
   const hasHomeRecognition = teamNames[0] ? recognizedTeams.has(teamNames[0]) : false;
   const hasAwayRecognition = teamNames[1] ? recognizedTeams.has(teamNames[1]) : false;
@@ -265,7 +280,7 @@ function RecognitionStep({
     completedCount === allSubjects.length && hasHomeRecognition && hasAwayRecognition;
   const teamRecognitionSummaries = teamNames.map((teamName) => {
     const teamSubjects = allSubjects.filter((subject) => subject.teamName === teamName);
-    const completed = teamSubjects.filter((subject) => decisions[subject.id]).length;
+    const completed = teamSubjects.filter((subject) => subject.decision !== "pending").length;
     return {
       completed,
       isComplete: teamSubjects.length > 0 && completed === teamSubjects.length,
@@ -291,25 +306,15 @@ function RecognitionStep({
   if (query.isError) return <ErrorState message={query.error?.message ?? "Errore sconosciuto"} onRetry={() => void query.refetch()} />;
   if (allSubjects.length === 0) return <EmptyState message="Nessun tesserato da riconoscere." />;
 
-  function decide(subject: RecognitionSubject, decision: Exclude<RecognitionDecision, "pending">) {
-    setDecisions((current) => ({ ...current, [subject.id]: decision }));
-    setDecisionOrder((current) => [...current.filter((subjectId) => subjectId !== subject.id), subject.id]);
-    setShowDocument(false);
+  function decide(subject: RecognitionSubject, decision: RecognitionDecision) {
+    if (decisionLock.current) return;
+    decisionLock.current = true;
+    const notes = decision === "pending" ? "" : decisionNotes;
+    void decisionMutation.mutateAsync({ id: subject.id, decision, notes }).catch(() => undefined)
+      .finally(() => { decisionLock.current = false; });
   }
 
-  function goBackToPreviousSubject() {
-    const previousSubjectId = currentTeamDecisionOrder.at(-1);
-    if (!previousSubjectId) return;
-    const previousSubject = allSubjects.find((subject) => subject.id === previousSubjectId);
-    setDecisions((current) => {
-      const next = { ...current };
-      delete next[previousSubjectId];
-      return next;
-    });
-    setDecisionOrder((current) => current.slice(0, -1));
-    if (previousSubject) setSelectedTeamName(previousSubject.teamName);
-    setShowDocument(false);
-  }
+  const previous = selectedTeamSubjects.filter((subject) => subject.decision !== "pending").at(-1);
 
   if (!currentSubject) {
     return (
@@ -329,6 +334,7 @@ function RecognitionStep({
             </View>
           ))}
         </View>
+        {previous ? <Button disabled={decisionMutation.isPending} onPress={() => decide(previous, "pending")}>Rivedi decisione precedente</Button> : null}
         {fullRecognitionComplete ? (
           <Button
             disabled={mutation.isPending || isRecognitionClosed}
@@ -365,7 +371,6 @@ function RecognitionStep({
       <View style={styles.manifestInfo}>
         <Text style={styles.detailValue}>Stato foto manifest: {photoStatusLabel(currentSubject.photoStatus ?? "missing")}</Text>
         <Text style={styles.body}>Fonte: {currentSubject.isFrozenSnapshot ? "Snapshot congelato" : "Manifest backend"}</Text>
-        {currentSubject.photoEtag ? <Text style={styles.etagText}>photoEtag: {currentSubject.photoEtag}</Text> : null}
       </View>
       <View style={styles.cardGapSmall}>
         <Text style={styles.sideLabel}>{currentSubject.teamName}</Text>
@@ -385,8 +390,11 @@ function RecognitionStep({
         )}
       </Pressable>
       <View style={styles.actionGrid}>
-        <Button disabled={currentTeamDecisionOrder.length === 0} onPress={goBackToPreviousSubject}>Indietro</Button>
-        <Button onPress={() => decide(currentSubject, "approved")}>Conferma riconoscimento</Button>
+
+        <Input accessibilityLabel="Note del riconoscimento" multiline placeholder="Nota obbligatoria senza foto o in caso di anomalia" value={decisionNotes} onChangeText={setDecisionNotes} />
+        <Button disabled={decisionMutation.isPending || ((!currentSubject.photoUrl || currentSubject.photoStatus !== "active") && !decisionNotes.trim())} onPress={() => decide(currentSubject, "approved")}>Conferma riconoscimento</Button>
+        <Button variant="danger" disabled={decisionMutation.isPending || !decisionNotes.trim()} onPress={() => decide(currentSubject, "rejected")}>Registra anomalia</Button>
+        {previous ? <Button disabled={decisionMutation.isPending} onPress={() => decide(previous, "pending")}>Rivedi decisione precedente</Button> : null}
       </View>
     </Card>
   );
@@ -461,13 +469,14 @@ function MatchReportStep({ fullRecognitionComplete, matchId }: Readonly<{ fullRe
   const recognitionErrors = fullRecognitionComplete ? [] : ["Riconoscimento non completato per entrambe le squadre"];
   const blockingErrors = [...recognitionErrors, ...reportErrors];
   const isReadOnly = isSubmitted || currentReport?.status === "submitted";
-  const submitMutation = useApiMutation(() => currentReport ? submitRefereeReport(matchId, currentReport) : Promise.reject(new Error("Nessun referto disponibile.")), {
+  const submitMutation = useApiMutation((action: "report-draft" | "final-report") => currentReport
+    ? writeRefereeReport(matchId, currentReport, action) : Promise.reject(new Error("Nessun referto disponibile.")), {
     onError(error) { toast.notify(error.message, "error"); },
-    onSuccess() {
-      if (currentReport) saveSubmittedFederationReport(matchId, currentReport);
-      setIsSubmitted(true);
-      toast.notify("Referto inviato", "success");
-      void invalidate(queryKeys.matchReports);
+    async onSuccess(_result, action) {
+      if (action === "final-report") setIsSubmitted(true);
+      await invalidate(queryKeys.matchReports);
+      setReport(null);
+      toast.notify(action === "final-report" ? "Referto riservato inviato" : "Bozza confermata dal server", "success");
     },
   });
 
@@ -477,7 +486,8 @@ function MatchReportStep({ fullRecognitionComplete, matchId }: Readonly<{ fullRe
   const currentStep = reportSteps[step];
   return (
     <Card style={styles.cardGap}>
-      <View style={styles.cardGapSmall}><Text style={styles.heading}>Referto</Text><Text style={styles.body}>Risultato, eventi disciplinari, sostituzioni, note e invio.</Text></View>
+      <View style={styles.cardGapSmall}><Text style={styles.heading}>Referto</Text><Text style={styles.body}>Referto riservato. L’invio non pubblica il risultato.</Text></View>
+      {!isReadOnly ? <Button disabled={submitMutation.isPending} onPress={() => submitMutation.mutate("report-draft")}>Salva bozza referto</Button> : null}
       <ReportQuickSummary blockingErrors={blockingErrors} onOpenSummary={() => setStep(reportSteps.length - 1)} report={currentReport} />
       <MobileTabs accessibilityLabel="Sezioni referto" items={reportStepTabs} onChange={(key) => setStep(Number(key))} value={String(step)} />
       {currentStep === "Risultato" ? <ResultPanel readOnly={isReadOnly} report={currentReport} setReport={setReport} /> : null}
@@ -486,7 +496,7 @@ function MatchReportStep({ fullRecognitionComplete, matchId }: Readonly<{ fullRe
       {currentStep === "Espulsioni" ? <EventsPanel eventKey="expulsions" readOnly={isReadOnly} recognitionSubjects={subjectsQuery.data ?? []} report={currentReport} setReport={setReport} title="Espulsioni" /> : null}
       {currentStep === "Sostituzioni" ? <EventsPanel eventKey="substitutions" readOnly={isReadOnly} recognitionSubjects={subjectsQuery.data ?? []} report={currentReport} setReport={setReport} title="Sostituzioni" /> : null}
       {currentStep === "Note" ? <Input editable={!isReadOnly} multiline onChangeText={(refereeNotes: string) => setReport({ ...currentReport, refereeNotes })} style={styles.notesInput} value={currentReport.refereeNotes} /> : null}
-      {currentStep === "Riepilogo" ? <SummaryPanel blockingErrors={blockingErrors} isReadOnly={isReadOnly} isPending={submitMutation.isPending} onSubmit={() => submitMutation.mutate()} report={currentReport} /> : null}
+      {currentStep === "Riepilogo" ? <SummaryPanel blockingErrors={blockingErrors} isReadOnly={isReadOnly} isPending={submitMutation.isPending} onSubmit={() => submitMutation.mutate("final-report")} report={currentReport} /> : null}
     </Card>
   );
 }
@@ -598,7 +608,6 @@ const styles = StyleSheet.create({
   heading: { color: colors.foreground, fontSize: 20, fontWeight: "700" },
   infoBox: { backgroundColor: colors.infoBackground, borderRadius: radii.lg, color: colors.infoText, fontSize: 14, padding: spacing.md },
   manifestInfo: { backgroundColor: colors.muted, borderColor: colors.border, borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
-  etagText: { color: colors.mutedForeground, fontSize: 11 },
   missingAlert: { backgroundColor: colors.dangerBackground, borderRadius: radii.lg, color: colors.dangerText, fontSize: 14, fontWeight: "600", padding: spacing.md },
   notesInput: { minHeight: 160, textAlignVertical: "top" },
   numberInput: { fontSize: 22, fontWeight: "800", minHeight: 56, textAlign: "center" },

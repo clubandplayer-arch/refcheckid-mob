@@ -14,7 +14,7 @@ export function Providers({ children }: Readonly<{ children: React.ReactNode }>)
             retry: 2,
             staleTime: 30_000,
           },
-          mutations: { retry: 1 },
+          mutations: { retry: false },
         },
       }),
   );

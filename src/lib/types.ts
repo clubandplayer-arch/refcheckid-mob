@@ -1,18 +1,23 @@
+import type { ManagerPhotoState } from "./manager-photo-backend";
+
 export type MatchSheetStatus = "draft" | "submitted" | "locked";
 export type PlayerLineupRole = "starter" | "reserve";
 
 export interface ManagerDashboard {
-  nextMatch: {
-    id: string;
-    opponent: string;
-    scheduledAt: string;
-    venue: string;
-  } | null;
+  games: readonly ManagerGame[];
+  nextMatch: ManagerGame | null;
   matchSheetStatus: MatchSheetStatus;
   notifications: readonly string[];
 }
 
-import type { ManagerPhotoState } from "./manager-photo-backend";
+export interface ManagerGame {
+  id: string;
+  clubId: string;
+  clubName: string;
+  opponent: string;
+  scheduledAt: string;
+  venue: string;
+}
 
 export interface PlayerListItem {
   id: string;

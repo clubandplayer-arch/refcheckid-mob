@@ -1,23 +1,8 @@
 import {
-  completeRecognition,
-  fetchMatches,
-  fetchMatchReports,
-  fetchMatchSheets,
-  fetchMatchPhotoManifest,
-  lockMatchSheet,
-  startRecognition,
-  submitMatchReport,
-  updateMatchReport,
+  ApiRequestError, completeRecognition, fetchMatches, fetchMatchReports, fetchMatchSheets,
+  fetchMatchPhotoManifest, lockMatchSheet, request, selectOperationalMatch, startRecognition,
 } from "./api-client";
-import { managerTeamConfig } from "./manager-team";
-import { applyManagerPhotoOverrides } from "./manager-photo-store";
-import { getPhotoFeatureFlags } from "./photo-feature-flags";
-import { pilotAwayPlayers, pilotAwayStaff, pilotPlayers, pilotStaff } from "./pilot-data";
-import {
-  buildPilotAwaySubmittedMatchSheetSnapshot,
-  buildPilotSubmittedMatchSheetSnapshot,
-  readSubmittedMatchSheetSnapshot,
-} from "./submitted-match-sheet";
+import { resolveRenderablePhotoUrl } from "./photo-url";
 import type { ApiMatch, ApiMatchSheet, ApiReport } from "./api-client";
 import type {
   MatchReportDraft,
@@ -28,11 +13,9 @@ import type {
 
 export async function fetchRefereeDashboard(): Promise<RefereeDashboard> {
   const matches = await fetchMatches();
-  const nextMatch =
-    [...matches].sort((a, b) =>
-      a.scheduledAt.localeCompare(b.scheduledAt),
-    )[0] ?? null;
+  const nextMatch = selectOperationalMatch(matches);
   return {
+    games: matches.map(toRefereeMatch),
     nextMatch: nextMatch ? toRefereeMatch(nextMatch) : null,
     notifications: nextMatch ? [toRefereeMatchNotification(nextMatch.status)] : [],
   };
@@ -52,75 +35,47 @@ export async function fetchRefereeMatchSheets(
   const sheets = await fetchMatchSheets(
     `?matchId=${encodeURIComponent(matchId)}`,
   );
-  return sheets.map((sheet, index) => toTeamSheetVerification(sheet, index));
+  return sheets.filter((sheet) => sheet.matchId === matchId).map(toTeamSheetVerification);
 }
 
 export async function fetchRecognitionSubjects(matchId?: string): Promise<
   readonly RecognitionSubject[]
 > {
-  const flags = getPhotoFeatureFlags();
-  if (flags.refereeManifest && matchId) {
-    const manifest = await fetchMatchPhotoManifest(matchId);
-    if (manifest.status !== "available") return [];
-    return manifest.subjects.map((subject) => ({ ...subject, decision: "pending" }));
-  }
-  if (!flags.legacyLocalFallback) return [];
-  const sheets = await fetchMatchSheets();
-  const homeSubmitted = sheets.some(
-    (sheet) => sheet.clubId === managerTeamConfig.home.clubId && sheet.status !== "draft",
-  );
-  const awaySubmitted = sheets.some(
-    (sheet) => sheet.clubId === managerTeamConfig.away.clubId && sheet.status !== "draft",
-  );
-  const homeSnapshot = homeSubmitted
-    ? readSubmittedMatchSheetSnapshot("home") ??
-      buildPilotSubmittedMatchSheetSnapshot({
-        players: applyManagerPhotoOverrides("home", pilotPlayers),
-        staff: applyManagerPhotoOverrides("home", pilotStaff),
-      })
-    : null;
-  const awaySnapshot = awaySubmitted
-    ? readSubmittedMatchSheetSnapshot("away") ??
-      buildPilotAwaySubmittedMatchSheetSnapshot({
-        players: applyManagerPhotoOverrides("away", pilotAwayPlayers),
-        staff: applyManagerPhotoOverrides("away", pilotAwayStaff),
-      })
-    : null;
-  return [
-    ...(homeSnapshot?.players ?? []),
-    ...(homeSnapshot?.staff ?? []),
-    ...(awaySnapshot?.players ?? []),
-    ...(awaySnapshot?.staff ?? []),
-  ].map((subject) => ({
-    id: subject.id,
-    firstName: subject.firstName,
-    lastName: subject.lastName,
-    shirtNumber: subject.shirtNumber,
-    teamName: subject.teamName,
-    roleLabel: subject.roleLabel,
-    subjectKind: subject.subjectKind,
-    photoUrl: subject.photoUrl,
-    photoStatus: subject.photoUrl ? "active" : "missing",
-    photoEtag: null,
-    manifestSource: "live_manifest",
-    isFrozenSnapshot: false,
-    document: {
-      type: subject.subjectKind === "player" ? "Documento atleta" : "Documento staff",
-      number: subject.id,
-      expiresAt: new Date().toISOString(),
-    },
-    decision: "pending",
-  }));
+  if (!matchId) return [];
+  const [manifest, saved] = await Promise.all([
+    fetchMatchPhotoManifest(matchId),
+    request<readonly { registrationId: string; status: string }[]>(`/recognitions?matchId=${encodeURIComponent(matchId)}`),
+  ]);
+  if (manifest.status !== "available") return [];
+  return manifest.subjects.map((subject) => {
+    const status = saved.find((entry) => entry.registrationId === subject.id)?.status;
+    return { ...subject, photoUrl: resolveRenderablePhotoUrl(subject.photoUrl),
+      decision: status === "recognized" ? "approved" : status === "rejected" ? "rejected" : "pending" };
+  });
+}
+
+export function saveRecognitionDecision(matchId: string, registrationId: string, decision: "approved" | "rejected" | "pending", notes = "") {
+  return request("/recognitions/decision", {
+    method: "POST",
+    body: JSON.stringify({ matchId, registrationId, status: decision === "approved" ? "recognized" : decision, notes: notes.trim() }),
+  });
+}
+
+export function fetchRecognitionWorkflow(matchId: string) {
+  return request<{ status: "not_started" | "in_progress" | "locked" }>(`/recognitions/workflow?matchId=${encodeURIComponent(matchId)}`);
 }
 
 export async function fetchRefereeReport(
   matchId: string,
 ): Promise<MatchReportDraft> {
-  const response = await fetchMatchReports(
-    `?matchId=${encodeURIComponent(matchId)}`,
-  );
-  const report = Array.isArray(response) ? response[0] : response;
-  return toReportDraft(report ?? null);
+  try {
+    const response = await fetchMatchReports(`?matchId=${encodeURIComponent(matchId)}`);
+    const report = Array.isArray(response) ? response[0] : response;
+    return toReportDraft(report ?? null);
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status === 404) return toReportDraft(null);
+    throw error;
+  }
 }
 
 export async function lockSubmittedSheetsAndStartRecognition(
@@ -131,52 +86,34 @@ export async function lockSubmittedSheetsAndStartRecognition(
   );
   await Promise.all(
     sheets
-      .filter((sheet) => sheet.status === "submitted")
+      .filter((sheet) => sheet.matchId === matchId && sheet.status === "submitted")
       .map((sheet) => lockMatchSheet(sheet.id)),
   );
-  return startRecognition(matchId);
+  const workflow = await fetchRecognitionWorkflow(matchId);
+  return workflow.status === "not_started" ? startRecognition(matchId) : workflow;
 }
 
 export { completeRecognition };
 
-export async function submitRefereeReport(
-  matchId: string,
-  report: MatchReportDraft,
-): Promise<ApiReport> {
-  const reportId = report.id ?? matchId;
-  await updateMatchReport(
-    reportId,
-    JSON.stringify(toSubmittedReportSummary(matchId, report)),
-  );
-  return submitMatchReport(reportId);
+export function writeRefereeReport(matchId: string, report: MatchReportDraft, action: "report-draft" | "final-report") {
+  const { goals, cautions, expulsions, substitutions, refereeNotes, homeGoals, awayGoals } = report;
+  const summary = JSON.stringify({
+    matchId, goals, cautions, expulsions, substitutions, refereeNotes,
+    result: { homeGoals, awayGoals },
+  });
+  return request<ApiReport>(`/matches/${encodeURIComponent(matchId)}/${action}`, {
+    method: "POST", body: JSON.stringify({ summary }),
+  });
 }
-
-function toSubmittedReportSummary(matchId: string, report: MatchReportDraft) {
-  return {
-    awayTeam: managerTeamConfig.away.label,
-    cautions: report.cautions,
-    expulsions: report.expulsions,
-    goals: report.goals,
-    homeTeam: managerTeamConfig.home.label,
-    matchId,
-    refereeName: "Arbitro Demo",
-    refereeNotes: report.refereeNotes,
-    result: {
-      awayGoals: report.awayGoals,
-      homeGoals: report.homeGoals,
-    },
-    substitutions: report.substitutions,
-  };
-}
-
 
 function toRefereeMatch(
   match: ApiMatch,
 ): NonNullable<RefereeDashboard["nextMatch"]> {
   return {
     id: match.id,
-    awayTeam: match.awayClubId,
-    homeTeam: match.homeClubId,
+    platformFixtureId: match.platformFixtureId,
+    awayTeam: match.awayClubName ?? "Ospiti",
+    homeTeam: match.homeClubName ?? "Casa",
     scheduledAt: match.scheduledAt,
     status:
       match.status === "completed"
@@ -188,51 +125,36 @@ function toRefereeMatch(
   };
 }
 
-function toTeamSheetVerification(
-  sheet: ApiMatchSheet,
-  _index: number,
-): TeamSheetVerification {
-  const team = sheet.clubId === managerTeamConfig.away.clubId ? "away" : "home";
-  const snapshot = readSubmittedMatchSheetSnapshot(team);
-  const fallbackSnapshot = team === "home"
-    ? buildPilotSubmittedMatchSheetSnapshot({
-        players: applyManagerPhotoOverrides("home", pilotPlayers),
-        staff: applyManagerPhotoOverrides("home", pilotStaff),
-      })
-    : buildPilotAwaySubmittedMatchSheetSnapshot({
-        players: applyManagerPhotoOverrides("away", pilotAwayPlayers),
-        staff: applyManagerPhotoOverrides("away", pilotAwayStaff),
-      });
-  const submittedSnapshot = sheet.status === "draft" ? null : snapshot ?? fallbackSnapshot;
+function toTeamSheetVerification(sheet: ApiMatchSheet): TeamSheetVerification {
   return {
     id: sheet.id,
-    clubName:
-      team === "home"
-        ? `${managerTeamConfig.home.label} · ${sheet.clubId}`
-        : `${managerTeamConfig.away.label} · ${sheet.clubId}`,
-    playerCount: submittedSnapshot?.players.length ?? 0,
-    staffCount: submittedSnapshot?.staff.length ?? 0,
-    status:
-      sheet.status === "locked"
-        ? "locked"
-        : sheet.status === "submitted"
-          ? "submitted"
-          : "missing",
+    clubName: sheet.clubName ?? "Società",
+    playerCount: sheet.playerCount ?? 0,
+    staffCount: sheet.staffCount ?? 0,
+    status: sheet.status === "draft" ? "missing" : sheet.status,
     submittedAt: sheet.submittedAt,
-    team,
+    team: sheet.team ?? "home",
   };
 }
 
 function toReportDraft(report: ApiReport | null): MatchReportDraft {
+  let summary: Partial<MatchReportDraft> & { result?: { homeGoals: number; awayGoals: number } } = {};
+  if (report?.summary) {
+    try {
+      summary = JSON.parse(report.summary) ?? {};
+    } catch {
+      summary = { refereeNotes: report.summary };
+    }
+  }
   return {
     id: report?.id ?? null,
     status: report?.status ?? "draft",
-    awayGoals: 0,
-    cautions: [],
-    expulsions: [],
-    goals: [],
-    homeGoals: 0,
-    refereeNotes: report?.summary ?? "",
-    substitutions: [],
+    awayGoals: summary.result?.awayGoals ?? 0,
+    cautions: summary.cautions ?? [],
+    expulsions: summary.expulsions ?? [],
+    goals: summary.goals ?? [],
+    homeGoals: summary.result?.homeGoals ?? 0,
+    refereeNotes: summary.refereeNotes ?? "",
+    substitutions: summary.substitutions ?? [],
   };
 }

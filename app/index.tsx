@@ -1,6 +1,6 @@
 import { Redirect } from "expo-router";
 import { StyleSheet } from "react-native";
-import { roleRedirects } from "@/components/auth/auth-gate";
+import { getRoleRedirect } from "@/components/auth/auth-gate";
 import { MobileScreen } from "@/components/ui/mobile-screen";
 import { LoginForm } from "@/features/auth/login-form";
 import { colors, spacing } from "@/lib/theme";
@@ -9,7 +9,7 @@ import { useSession } from "@/lib/session";
 export default function Index() {
   const { isReady, session } = useSession();
 
-  if (isReady && session) return <Redirect href={roleRedirects[session.user.role]} />;
+  if (isReady && session) return <Redirect href={getRoleRedirect(session.user)} />;
 
   return (
     <MobileScreen contentStyle={styles.screen} keyboardAvoiding style={styles.shell}>

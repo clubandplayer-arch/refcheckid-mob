@@ -1,50 +1,36 @@
-import { readFileSync } from "node:fs";
+import { fetchRecognitionSubjects, saveRecognitionDecision } from "@/lib/referee-api-client";
+import { fetchMatchPhotoManifest, request } from "@/lib/api-client";
 
-function read(path: string): string {
-  return readFileSync(path, "utf8");
-}
+jest.mock("@/lib/api-client", () => ({ request: jest.fn(), fetchMatchPhotoManifest: jest.fn() }));
+const api = jest.mocked(request);
+const manifest = jest.mocked(fetchMatchPhotoManifest);
+beforeEach(() => { api.mockReset(); manifest.mockReset(); });
 
-describe("Referee Mobile ARCH-1 official photo workflow", () => {
-  it("uses the backend match photo manifest as the recognition source of truth", () => {
-    const apiClient = read("src/lib/api-client.ts");
-    const refereeClient = read("src/lib/referee-api-client.ts");
-
-    expect(apiClient).toContain("ApiMatchPhotoManifest");
-    expect(apiClient).toContain("/matches/${encodeURIComponent(matchId)}/photo-manifest");
-    expect(refereeClient).toContain("getPhotoFeatureFlags");
-    expect(refereeClient).toContain("fetchMatchPhotoManifest(matchId)");
-    expect(refereeClient).toContain('manifest.status !== "available"');
-    expect(refereeClient).not.toContain('/players/${encodeURIComponent');
-    expect(refereeClient).not.toContain('/photo?rendition');
+it("loads saved decisions for both teams and reopens official signed photos", async () => {
+  manifest.mockResolvedValue({
+    matchId: "match", manifestVersion: "frozen", photoEtag: "tag", generatedAt: "", expiresAt: null, status: "available",
+    subjects: [subject("home", "Casa"), subject("away", "Ospiti")],
   });
-
-  it("pins and prefetches the manifest-backed recognition cache for offline use", () => {
-    const workflow = read("src/features/referee/referee-match-workflow.tsx");
-
-    expect(workflow).toContain("staleTime: Number.POSITIVE_INFINITY");
-    expect(workflow).toContain("refetchOnWindowFocus: false");
-    expect(workflow).toContain("refetchOnReconnect: false");
-    expect(workflow).toContain("refetchOnMount: false");
-    expect(workflow).toContain("refetchInterval: false");
-    expect(workflow).toContain("retry: false");
-    expect(workflow).toContain("manifestQueryOptions");
-    expect(workflow).toContain("Image.prefetch(photoUrl)");
-    expect(workflow).toContain('() => fetchRecognitionSubjects(matchId)');
-  });
-
-  it("renders backend photo state and frozen snapshot metadata without local reconstruction", () => {
-    const types = read("src/lib/referee-types.ts");
-    const workflow = read("src/features/referee/referee-match-workflow.tsx");
-
-    expect(types).toContain("ManifestPhotoStatus");
-    expect(types).toContain("ManifestSource");
-    expect(types).toContain("photoEtag?: string | null");
-    expect(types).toContain("isFrozenSnapshot?: boolean");
-    expect(workflow).toContain("photoStatusLabel(currentSubject.photoStatus");
-    expect(workflow).toContain("Snapshot congelato");
-    expect(workflow).toContain("Manifest backend");
-    expect(workflow).toContain("currentSubject.photoEtag");
-    expect(workflow).toContain('(currentSubject.photoStatus ?? "missing") === "active"');
-  });
-
+  api.mockResolvedValue([{ registrationId: "home", status: "recognized" }, { registrationId: "away", status: "rejected" }]);
+  await expect(fetchRecognitionSubjects("match")).resolves.toMatchObject([
+    { id: "home", decision: "approved", isFrozenSnapshot: true, photoUrl: expect.stringContaining("/api/v1/photo") },
+    { id: "away", decision: "rejected", teamName: "Ospiti" },
+  ]);
+  expect(api).toHaveBeenCalledWith("/recognitions?matchId=match");
 });
+
+it("persists the referee decision with the backend registration ID and status", async () => {
+  api.mockResolvedValue({});
+  await saveRecognitionDecision("match", "away", "approved");
+  expect(api).toHaveBeenCalledWith("/recognitions/decision", {
+    method: "POST", body: JSON.stringify({ matchId: "match", registrationId: "away", status: "recognized", notes: "" }),
+  });
+});
+
+function subject(id: string, teamName: string) {
+  return {
+    id, firstName: "Nome", lastName: "Test", teamName, photoUrl: "/api/v1/photo", isFrozenSnapshot: true,
+    photoStatus: "active" as const, photoEtag: "etag", manifestSource: "frozen_snapshot" as const,
+    shirtNumber: 1, roleLabel: "Titolare", subjectKind: "player" as const, document: { type: "", number: "", expiresAt: "" },
+  };
+}
