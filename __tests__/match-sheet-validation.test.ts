@@ -73,6 +73,8 @@ function buildPlayers(count: number, start = 1): PlayerListItem[] {
       isViceCaptain: false,
       lastName: `Cognome${number}`,
       photoUrl: null,
+      registrationId: null,
+      season: null,
       role: "starter",
       selected: true,
       shirtNumber: number,
@@ -83,5 +85,5 @@ function buildPlayers(count: number, start = 1): PlayerListItem[] {
 }
 
 function staffMember(index = 1): StaffListItem {
-  return { fullName: `Staff ${index}`, id: `staff-${index}`, photoUrl: null, role: "Allenatore", selected: true };
+  return { fullName: `Staff ${index}`, id: `staff-${index}`, photoUrl: null, registrationId: null, season: null, role: "Allenatore", selected: true };
 }

@@ -1,3 +1,4 @@
+import { IdentityHeader } from "@/features/auth/identity-header";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { AuthGate } from "@/components/auth/auth-gate";
@@ -52,30 +53,28 @@ function ManagerDashboard() {
     );
   }
 
-  const nextMatch = dashboard.nextMatch;
-
   return (
     <MobileScreen contentStyle={styles.screen}>
+      <IdentityHeader role="manager" />
       <View style={styles.header}>
         <View style={styles.headingText}>
           <Text style={styles.kicker}>Area Dirigente</Text>
           <Text style={styles.title}>Dashboard</Text>
         </View>
-        <Button onPress={() => router.push("/manager/match-sheet")}>Apri distinta</Button>
+
       </View>
 
       <View style={styles.cards}>
         <Card style={styles.dashboardCard}>
-          <Text style={styles.cardTitle}>Prossima gara</Text>
-          {nextMatch ? (
-            <View style={styles.matchDetails}>
-              <Text style={styles.opponent}>{nextMatch.opponent}</Text>
-              <Text style={styles.body}>{formatScheduledAt(nextMatch.scheduledAt)}</Text>
-              <Text style={styles.body}>{nextMatch.venue}</Text>
+          <Text style={styles.cardTitle}>Gare autorizzate</Text>
+          {dashboard.games.length === 0 ? <EmptyState message="Nessuna gara disponibile." /> : null}
+          {dashboard.games.map((game) => (
+            <View key={`${game.id}:${game.clubId}`} style={styles.matchDetails}>
+              <Text style={styles.opponent}>{game.clubName} – {game.opponent}</Text>
+              <Text style={styles.body}>{formatScheduledAt(game.scheduledAt)} · {game.venue}</Text>
+              <Button onPress={() => router.push({ pathname: "/manager/match-sheet", params: { matchId: game.id, clubId: game.clubId } })}>Apri distinta</Button>
             </View>
-          ) : (
-            <EmptyState message="Nessuna gara programmata." />
-          )}
+          ))}
         </Card>
 
         <Card style={styles.dashboardCard}>

@@ -1,3 +1,4 @@
+import { IdentityHeader } from "@/features/auth/identity-header";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { AuthGate } from "@/components/auth/auth-gate";
@@ -7,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { queryKeys, useApiQuery } from "@/lib/query";
 import { fetchRefereeDashboard } from "@/lib/referee-api-client";
+import { Appointments } from "@/features/referee/appointments";
 import { colors, spacing } from "@/lib/theme";
 
 export default function RefereePage() {
@@ -55,28 +57,27 @@ function RefereeDashboard() {
 
   return (
     <MobileScreen contentStyle={styles.screen}>
+      <IdentityHeader role="referee" />
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.kicker}>Area Arbitro</Text>
           <Text style={styles.title}>Dashboard</Text>
         </View>
-        <Button onPress={() => router.push("/referee/match")}>Apri gara</Button>
+
       </View>
 
       <View style={styles.grid}>
+        <Appointments />
         <Card style={styles.card}>
-          <Text style={styles.cardTitle}>Prossima gara</Text>
-          {nextMatch ? (
-            <View style={styles.cardBody}>
-              <Text style={styles.matchTitle}>
-                {nextMatch.homeTeam} - {nextMatch.awayTeam}
-              </Text>
-              <Text style={styles.body}>{new Date(nextMatch.scheduledAt).toLocaleString("it-IT")}</Text>
-              <Text style={styles.body}>{nextMatch.venue}</Text>
+          <Text style={styles.cardTitle}>Gare autorizzate</Text>
+          {dashboard.games.length === 0 ? <EmptyState message="Nessuna gara assegnata." /> : null}
+          {dashboard.games.map((game) => (
+            <View key={game.id} style={styles.cardBody}>
+              <Text style={styles.matchTitle}>{game.homeTeam} – {game.awayTeam}</Text>
+              <Text style={styles.body}>{new Date(game.scheduledAt).toLocaleString("it-IT")} · {game.venue}</Text>
+              <Button onPress={() => router.push({ pathname: "/referee/match", params: { matchId: game.id } })}>Apri gara</Button>
             </View>
-          ) : (
-            <EmptyState message="Nessuna gara assegnata." />
-          )}
+          ))}
         </Card>
 
         <Card style={styles.card}>

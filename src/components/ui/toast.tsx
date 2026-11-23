@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "@/lib/theme";
 
@@ -17,15 +17,25 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 export function ToastProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [messages, setMessages] = useState<readonly ToastMessage[]>([]);
   const counter = useRef(0);
+  const timeouts = useRef(new Set<ReturnType<typeof setTimeout>>());
+  useEffect(() => {
+    const active = timeouts.current;
+    return () => {
+      active.forEach(clearTimeout);
+      active.clear();
+    };
+  }, []);
   const value = useMemo<ToastContextValue>(
     () => ({
       notify(message, tone = "info") {
         counter.current += 1;
         const id = `${Date.now()}-${counter.current}`;
         setMessages((current) => [...current, { id, message, tone }]);
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
+          timeouts.current.delete(timeout);
           setMessages((current) => current.filter((toast) => toast.id !== id));
         }, 3500);
+        timeouts.current.add(timeout);
       },
     }),
     [],

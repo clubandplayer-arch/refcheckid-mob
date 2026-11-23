@@ -17,6 +17,11 @@ ios/
 # Local environment
 .env
 .env.*
+!.env.example
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
 
 # IDE
 .vscode/

@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/button";
 import { logoutSession } from "@/lib/auth-client";
 import { colors, spacing } from "@/lib/theme";
-import { useSession, type AppRole } from "@/lib/session";
+import { hasAppRole, useSession, type AppRole, type AuthenticatedUser } from "@/lib/session";
 
 export const roleRedirects: Record<AppRole, string> = {
   federation: "/federation",
@@ -13,12 +13,21 @@ export const roleRedirects: Record<AppRole, string> = {
   referee: "/referee",
 };
 
+const operationalRoles = ["manager", "referee"] as const;
+
+export function getRoleRedirect(user: AuthenticatedUser): string {
+  if (user.role === "manager" || user.role === "referee") return roleRedirects[user.role];
+  const mobileRole = operationalRoles.find((role) => hasAppRole(user, role));
+  return mobileRole ? roleRedirects[mobileRole] : roleRedirects.federation;
+}
+
 export function AuthGate({ allowedRole, children }: Readonly<{ allowedRole: AppRole; children: ReactNode }>) {
   const { isReady, logout, session } = useSession();
 
   if (!isReady) return <Verification />;
   if (!session) return <Redirect href="/" />;
-  if (session.user.role !== allowedRole) return <Redirect href={roleRedirects[session.user.role]} />;
+  const webOnly = allowedRole === "federation" && getRoleRedirect(session.user) === roleRedirects.federation;
+  if (!webOnly && !hasAppRole(session.user, allowedRole)) return <Redirect href={getRoleRedirect(session.user)} />;
 
   async function handleLogout() {
     if (session) {
@@ -39,6 +48,9 @@ export function AuthGate({ allowedRole, children }: Readonly<{ allowedRole: AppR
           <Button onPress={() => void handleLogout()}>Logout</Button>
         </View>
       </SafeAreaView>
+      {operationalRoles.filter((role) => role !== allowedRole && hasAppRole(session.user, role)).map((role) => (
+        <Button key={role} onPress={() => router.replace(roleRedirects[role])}>{role === "manager" ? "Area dirigente" : "Area arbitro"}</Button>
+      ))}
       {children}
     </View>
   );

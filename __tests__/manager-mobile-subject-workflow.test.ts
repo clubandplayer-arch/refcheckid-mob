@@ -1,50 +1,33 @@
-import { readFileSync } from "node:fs";
+import { fetchManagerPhotoStates, uploadOfficialSubjectPhoto } from "@/lib/manager-photo-backend";
+import { request } from "@/lib/api-client";
 
-function read(path: string): string {
-  return readFileSync(path, "utf8");
-}
+jest.mock("@/lib/api-client", () => ({ request: jest.fn() }));
+jest.mock("expo-crypto", () => ({
+  CryptoDigestAlgorithm: { SHA256: "SHA-256" },
+  digest: jest.fn(async () => new Uint8Array(32).buffer),
+}));
+jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
+const api = jest.mocked(request);
 
-describe("Manager Mobile ARCH-1 subject workflow", () => {
-  it("uses the official subject upload workflow for both players and staff", () => {
-    const workflow = read("src/features/manager/match-sheet-workflow.tsx");
+beforeEach(() => api.mockReset());
 
-    expect(workflow).toContain('subjectKind: "athlete"');
-    expect(workflow).toContain('subjectKind: "staff_member"');
-    expect(workflow).toContain("uploadOfficialSubjectPhoto");
-    expect(workflow).toContain("Pending Approval");
+it("loads the server's pending photo and mandatory reason in the club scope", async () => {
+  api.mockResolvedValue({ items: [{ registrationId: "t", status: "pending", approvalId: "a", currentPhotoUrl: "/api/v1/photo", proposedPhotoUrl: null, requiresReplacementReason: true }] });
+  const result = await fetchManagerPhotoStates("club", ["t", "t"]);
+  expect(api).toHaveBeenCalledTimes(1);
+  expect(api).toHaveBeenCalledWith("/platform/club-photo-roster/club?registrations=t");
+  expect(result.get("t")).toMatchObject({ status: "pending", approvalId: "a", requiresReplacementReason: true,
+    currentPhotoUrl: expect.stringMatching(/^https?:\/\/.+\/api\/v1\/photo$/) });
+});
+
+it("sends the staff ID, replacement reason and photo bytes through the official upload", async () => {
+  api.mockResolvedValueOnce({ intent: { uploadId: "upload", objectKey: "object" } }).mockResolvedValueOnce({});
+  await uploadOfficialSubjectPhoto({ subjectKind: "staff_member", subjectId: "person", registrationId: "t",
+    clubId: "club", federationId: "fed", seasonId: "season", dataUrl: "data:image/jpeg;base64,AQID",
+    mimeType: "image/jpeg", replacementReason: "Motivazione di sostituzione verificata" });
+  expect(JSON.parse(api.mock.calls[0][1]?.body as string)).toMatchObject({
+    staffMemberId: "person", replacementReason: "Motivazione di sostituzione verificata", fileSizeBytes: 3,
   });
-
-  it("enriches players and staff with backend photo state and registration context", () => {
-    const apiClient = read("src/lib/api-client.ts");
-
-    expect(apiClient).toContain("enrichPlayersWithBackendPhotos");
-    expect(apiClient).toContain("enrichStaffWithBackendStatus");
-    expect(apiClient).toContain("fetchPlayerRegistrations");
-    expect(apiClient).toContain("fetchStaffRegistrations");
-  });
-
-  it("implements Upload Intent and Upload Complete in the mobile official photo service", () => {
-    const backend = read("src/lib/manager-photo-backend.ts");
-
-    expect(backend).toContain('"/photos/upload-intent"');
-    expect(backend).toContain('/photos/uploads/${encodeURIComponent(uploadId)}/complete');
-    expect(backend).toContain("readBackendPhotoState");
-    expect(backend).toContain("proposedPhotoUrl");
-    expect(backend).not.toContain("playerId: input.subjectId");
-    expect(backend).not.toContain("staffMemberId: input.subjectId");
-  });
-
-  it("keeps manager mobile official-photo read mapping aligned with Manager Web", () => {
-    const apiClient = read("src/lib/api-client.ts");
-    const backend = read("src/lib/manager-photo-backend.ts");
-    const workflow = read("src/features/manager/match-sheet-workflow.tsx");
-
-    expect(apiClient).toContain("fetchPlayerRegistrations(`?clubId=${encodeURIComponent(managerClubId)}`).catch");
-    expect(apiClient).toContain('return value === "/placeholder-player.svg" ? null : value;');
-    expect(backend).toContain("currentPhotoUrl = signed.signedUrl?.url ?? null");
-    expect(backend).toContain("if (flags.legacyLocalFallback) currentPhotoUrl = legacyPhotoUrl");
-    expect(backend).toContain("return signed.signedUrl?.url ?? null");
-    expect(workflow).not.toContain("PlayerPhotoDiagnostics");
-  });
-
+  expect(api.mock.calls[1][0]).toBe("/photos/uploads/upload/complete");
+  expect(JSON.parse(api.mock.calls[1][1]?.body as string)).toMatchObject({ contentBase64: "AQID" });
 });

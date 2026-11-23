@@ -1,3 +1,4 @@
+import type { LineupRules } from "./api-client";
 import type { PlayerListItem, StaffListItem } from "./types";
 
 export const lineupRoleOptions = [
@@ -39,7 +40,13 @@ export interface MatchSheetValidationResult {
 export function validateMatchSheet(
   players: readonly PlayerListItem[],
   staff: readonly StaffListItem[],
+  rules?: LineupRules,
 ): MatchSheetValidationResult {
+  const expectedStarters = rules?.starters ?? 11;
+  const benchLimit = rules?.benchLimit ?? 20;
+  const staffLimit = rules?.staffLimit ?? 5;
+  const invalidNumbers = players.some(({ shirtNumber }) => shirtNumber !== null &&
+    (!Number.isInteger(shirtNumber) || shirtNumber < (rules?.minShirtNumber ?? 1) || shirtNumber > (rules?.maxShirtNumber ?? 99)));
   const missingShirtNumberPlayers = players
     .filter((player) => player.shirtNumber === null)
     .map((player) => `${player.lastName} ${player.firstName}`);
@@ -76,16 +83,17 @@ export function validateMatchSheet(
     ...(missingNumbers > 0
       ? [`Completa i numeri maglia per: ${missingShirtNumberPlayers.join(", ")}.`]
       : []),
+    ...(invalidNumbers ? ["Numero di maglia fuori dai limiti consentiti."] : []),
     ...(duplicateShirtNumbers.length > 0
       ? [`Numeri di maglia duplicati: ${duplicateShirtNumbers.join(", ")}.`]
       : []),
     ...(invalidPlayers > 0 ? ["Rimuovi i giocatori non validi dalla distinta."] : []),
-    ...(startingGoalkeepers === 0 ? ["Seleziona un Portiere tra gli 11 titolari."] : []),
-    ...(startingGoalkeepers > 1 ? ["Seleziona un solo Portiere tra gli 11 titolari."] : []),
-    ...(startingLineup < 11 ? ["Seleziona 11 titolari per completare la distinta."] : []),
-    ...(startingLineup > 11 ? ["Seleziona al massimo 11 titolari."] : []),
-    ...(benchPlayers > 20 ? ["Seleziona al massimo 20 giocatori in panchina."] : []),
-    ...(staff.length > 5 ? ["Seleziona al massimo 5 membri dello staff in panchina."] : []),
+    ...(rules?.goalkeeperRequired !== false && startingGoalkeepers === 0 ? [`Seleziona un Portiere tra gli ${expectedStarters} titolari.`] : []),
+    ...(rules?.goalkeeperRequired !== false && startingGoalkeepers > 1 ? [`Seleziona un solo Portiere tra gli ${expectedStarters} titolari.`] : []),
+    ...(startingLineup < expectedStarters ? [`Seleziona ${expectedStarters} titolari per completare la distinta.`] : []),
+    ...(startingLineup > expectedStarters ? [`Seleziona al massimo ${expectedStarters} titolari.`] : []),
+    ...(benchPlayers > benchLimit ? [`Seleziona al massimo ${benchLimit} giocatori in panchina.`] : []),
+    ...(staff.length > staffLimit ? [`Seleziona al massimo ${staffLimit} membri dello staff in panchina.`] : []),
     ...(captains > 1 ? ["Seleziona al massimo un Capitano."] : []),
     ...(reserveCaptains > 0 ? ["Il Capitano deve essere scelto tra i titolari."] : []),
     ...(viceCaptains > 1 ? ["Seleziona al massimo un Vice capitano."] : []),

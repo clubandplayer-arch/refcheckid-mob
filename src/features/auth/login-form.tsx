@@ -1,13 +1,12 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { roleRedirects } from "@/components/auth/auth-gate";
+import { getRoleRedirect } from "@/components/auth/auth-gate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { AuthError, authenticateWithPassword, type AuthDiagnostics } from "@/lib/auth-client";
-import { getApiBaseUrl } from "@/lib/api-base-url";
 import { colors, spacing } from "@/lib/theme";
 import { useSession } from "@/lib/session";
 
@@ -36,11 +35,6 @@ export function LoginForm() {
       return;
     }
 
-    const loginUrl = `${getApiBaseUrl()}/auth/login`;
-    const safePayload = { email };
-
-    console.log("[RefCheckID][Auth][LoginRequest]", { payload: safePayload, url: loginUrl });
-
     setIsSubmitting(true);
     try {
       const session = await authenticateWithPassword({ email, password });
@@ -48,11 +42,12 @@ export function LoginForm() {
       setError(null);
       login(session);
       notify("Accesso eseguito", "success");
-      router.push(roleRedirects[session.user.role]);
+      router.push(getRoleRedirect(session.user));
     } catch (submitError) {
-      logLoginError(submitError, loginUrl, safePayload);
       const message = getLoginErrorMessage(submitError);
-      setDiagnostics(submitError instanceof AuthError ? submitError.diagnostics : null);
+      setDiagnostics(isDevelopment && submitError instanceof AuthError
+        ? { url: submitError.diagnostics.url, status: submitError.diagnostics.status, corsOrNetworkError: submitError.diagnostics.corsOrNetworkError }
+        : null);
       setError(message);
       notify(message, "error");
     } finally {
@@ -117,21 +112,9 @@ export function LoginForm() {
 }
 
 function getLoginErrorMessage(submitError: unknown): string {
-  const fallbackMessage = submitError instanceof AuthError ? errorMessages[submitError.code] : "Accesso non riuscito.";
+  const fallbackMessage = submitError instanceof AuthError ? (errorMessages[submitError.code] ?? "Accesso non riuscito.") : "Accesso non riuscito.";
   if (!isDevelopment || !(submitError instanceof Error) || !submitError.message) return fallbackMessage;
   return `${fallbackMessage} ${submitError.message}`;
-}
-
-function logLoginError(submitError: unknown, url: string, payload: { email: string }): void {
-  const diagnostics = submitError instanceof AuthError ? submitError.diagnostics : null;
-  console.error("[RefCheckID][Auth][LoginError]", {
-    body: diagnostics?.responseBody ?? null,
-    errorMessage: submitError instanceof Error ? submitError.message : String(submitError),
-    payload,
-    stack: submitError instanceof Error ? submitError.stack : null,
-    status: diagnostics?.status ?? null,
-    url: diagnostics?.url ?? url,
-  });
 }
 
 function validate(email: string, password: string): string | null {

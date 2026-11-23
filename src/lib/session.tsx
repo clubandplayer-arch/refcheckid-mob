@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 
@@ -6,8 +7,16 @@ export type AppRole = "manager" | "referee" | "federation";
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  role: AppRole;
+  role: AppRole | "admin";
+  availableRoles?: readonly (AppRole | "admin")[];
   displayName: string;
+  clubIds?: readonly string[];
+  clubFederationIds?: Readonly<Record<string, string>>;
+  federationIds?: readonly string[];
+}
+
+export function hasAppRole(user: AuthenticatedUser, role: AppRole): boolean {
+  return user.role === role || !!user.availableRoles?.includes(role);
 }
 
 export interface AppSession {
@@ -19,6 +28,9 @@ export interface AppSession {
 
 const storageKey = "refcheckid.session";
 let memorySession: string | null = null;
+let refreshInProgress: { token: string; promise: Promise<AppSession | null> } | null = null;
+
+const invalidationListeners = new Set<() => void>();
 
 interface SessionContextValue {
   session: AppSession | null;
@@ -31,47 +43,42 @@ interface SessionContextValue {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: Readonly<{ children: React.ReactNode }>) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<AppSession | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     setSession(readStoredSession());
     setIsReady(true);
-  }, []);
+    const invalidate = () => {
+      queryClient.clear();
+      setSession(null);
+    };
+    invalidationListeners.add(invalidate);
+    return () => { invalidationListeners.delete(invalidate); };
+  }, [queryClient]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
       session,
       isReady,
       login(nextSession) {
+        queryClient.clear();
         writeStoredSession(nextSession);
         setSession(nextSession);
       },
       async refreshSession() {
-        const currentSession = readStoredSession();
-        if (currentSession === null) {
-          removeStoredSession();
-          setSession(null);
-          return null;
-        }
-
-        const refreshedSession = await refreshStoredSession(currentSession.refreshToken);
-        if (refreshedSession === null) {
-          removeStoredSession();
-          setSession(null);
-          return null;
-        }
-
-        writeStoredSession(refreshedSession);
+        const refreshedSession = await resolveActiveSession();
         setSession(refreshedSession);
         return refreshedSession;
       },
       logout() {
+        queryClient.clear();
         removeStoredSession();
         setSession(null);
       },
     }),
-    [isReady, session],
+    [isReady, queryClient, session],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
@@ -102,25 +109,55 @@ export function removeStoredSession(): void {
   removeStorageItem(storageKey);
 }
 
+export function invalidateSession(accessToken: string) {
+  if (readStoredSession()?.accessToken !== accessToken) return;
+  removeStoredSession();
+  invalidationListeners.forEach((listener) => listener());
+}
+
 export function isSessionExpired(session: AppSession): boolean {
   return Date.parse(session.expiresAt) <= Date.now();
 }
 
-export async function refreshStoredSession(refreshToken: string): Promise<AppSession | null> {
+export async function resolveActiveSession(): Promise<AppSession | null> {
+  const session = readStoredSession();
+  if (!session || !isSessionExpired(session)) return session;
+
+  const token = session.refreshToken;
+  if (refreshInProgress?.token === token) return refreshInProgress.promise;
+
+  const promise = refreshStoredSession(token).then((refreshed) => {
+    // A response for an old session may arrive after logout or account switch.
+    if (readStoredSession()?.refreshToken !== token) return null;
+    if (refreshed?.user.id === session.user.id) {
+      writeStoredSession(refreshed);
+      return refreshed;
+    }
+    invalidateSession(session.accessToken);
+    return null;
+  }).finally(() => {
+    if (refreshInProgress?.promise === promise) refreshInProgress = null;
+  });
+  refreshInProgress = { token, promise };
+  return promise;
+}
+
+async function refreshStoredSession(refreshToken: string): Promise<AppSession | null> {
   const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ refreshToken }),
   });
 
-  if (!response.ok) return null;
+  if ([400, 401, 403].includes(response.status)) return null;
+  if (!response.ok) throw new Error(`Rinnovo sessione non riuscito (HTTP ${response.status}).`);
   const session = (await response.json()) as AppSession;
   return isValidSession(session) ? session : null;
 }
 
 export function isValidSession(session: AppSession): boolean {
   return Boolean(
-    session.accessToken &&
+    session?.accessToken &&
       session.refreshToken &&
       session.expiresAt &&
       session.user?.id &&

@@ -1,19 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 
-type ImagePickerAsset = {
-  readonly base64?: string | null;
-  readonly fileSize?: number | null;
-  readonly mimeType?: string | null;
-  readonly type?: string | null;
-  readonly uri?: string | null;
-};
-
-type ImagePickerResult = {
-  readonly assets?: readonly ImagePickerAsset[] | null;
-  readonly canceled?: boolean;
-};
-
 export type NativePhotoDraft = {
+  readonly dataUrl: string;
   readonly mimeType: string;
   readonly previewUrl: string;
   readonly sizeBytes: number;
@@ -31,32 +19,25 @@ export async function choosePhotoFromLibrary(): Promise<NativePhotoDraft | null>
   return pickPhoto(() => ImagePicker.launchImageLibraryAsync(buildImagePickerOptions()));
 }
 
-async function pickPhoto(launch: () => Promise<ImagePickerResult>): Promise<NativePhotoDraft | null> {
+async function pickPhoto(launch: () => Promise<ImagePicker.ImagePickerResult>): Promise<NativePhotoDraft | null> {
   const result = await launch();
   if (result.canceled) return null;
   const asset = result.assets?.[0];
-  if (!asset?.uri) return null;
+  if (!asset?.uri || !asset.base64) throw new Error("Immagine non disponibile.");
+  // ImagePicker returns JPEG data when base64 is requested.
   return {
-    mimeType: asset.mimeType ?? inferMimeType(asset.uri, asset.type),
+    dataUrl: `data:image/jpeg;base64,${asset.base64}`,
+    mimeType: "image/jpeg",
     previewUrl: asset.uri,
-    sizeBytes: asset.fileSize ?? 0,
+    sizeBytes: Math.floor(asset.base64.length * 3 / 4) - (asset.base64.endsWith("==") ? 2 : asset.base64.endsWith("=") ? 1 : 0),
   };
 }
 
-function buildImagePickerOptions() {
+function buildImagePickerOptions(): ImagePicker.ImagePickerOptions {
   return {
     allowsEditing: true,
     base64: true,
     mediaTypes: ["images"],
     quality: 0.9,
   };
-}
-
-function inferMimeType(uri: string, assetType?: string | null): string {
-  if (assetType?.startsWith("image/")) return assetType;
-  const extension = uri.split("?")[0]?.split(".").at(-1)?.toLowerCase();
-  if (extension === "png") return "image/png";
-  if (extension === "webp") return "image/webp";
-  if (extension === "heic" || extension === "heif") return "image/heic";
-  return "image/jpeg";
 }

@@ -15,6 +15,11 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "developmentClient": false,
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://refcheckid-staging-git-codex-org-92c386-clubandplayers-projects.vercel.app/api/v1"
       }
     },
     "production": {

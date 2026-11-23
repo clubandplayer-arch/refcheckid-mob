@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
-import type { AppSession } from "@/lib/session";
+import { isValidSession, type AppSession, type AuthenticatedUser } from "@/lib/session";
 
 export type AuthErrorCode = "INVALID_CREDENTIALS" | "USER_NOT_FOUND" | "ACCOUNT_DISABLED";
 
@@ -26,8 +26,6 @@ export async function authenticateWithPassword(input: {
   password: string;
 }): Promise<AppSession> {
   const url = `${getApiBaseUrl()}/auth/login`;
-  const safePayload = { email: input.email, passwordLength: input.password.length };
-  console.info("[RefCheckID][auth] login request", { payload: safePayload, url });
 
   let response: Response;
   try {
@@ -47,12 +45,6 @@ export async function authenticateWithPassword(input: {
 
   const responseText = await response.text();
   const responseBody = parseResponseBody(responseText);
-  console.info("[RefCheckID][auth] login response", {
-    body: responseBody,
-    status: response.status,
-    url,
-  });
-
   if (!response.ok) {
     const body = isAuthErrorBody(responseBody) ? responseBody : {};
     throw new AuthError(body.error ?? "INVALID_CREDENTIALS", body.message ?? "Accesso non riuscito.", {
@@ -62,7 +54,17 @@ export async function authenticateWithPassword(input: {
     });
   }
 
-  return responseBody as AppSession;
+  const session = responseBody as AppSession | null;
+  if (!session || !isValidSession(session)) throw new Error("Sessione non valida.");
+  const profile = await fetch(`${getApiBaseUrl()}/auth/me`, {
+    headers: { authorization: `Bearer ${session.accessToken}` },
+  });
+  if (!profile.ok) throw new Error(`Profilo non disponibile (HTTP ${profile.status}).`);
+  const user = (await profile.json()) as AuthenticatedUser;
+  if (user?.id !== session.user.id || !["manager", "referee", "federation", "admin"].includes(user.role)) {
+    throw new Error("Per questo profilo usa il portale web.");
+  }
+  return { ...session, user };
 }
 
 export async function logoutSession(refreshToken: string): Promise<void> {

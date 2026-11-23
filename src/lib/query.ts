@@ -30,7 +30,7 @@ export function useApiMutation<TData, TVariables = void>(
 ): UseMutationResult<TData, Error, TVariables> {
   return useMutation<TData, Error, TVariables>({
     mutationFn,
-    retry: 1,
+    retry: false,
     ...options,
   });
 }
