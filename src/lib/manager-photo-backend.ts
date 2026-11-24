@@ -12,6 +12,12 @@ export interface ManagerPhotoState {
   readonly proposedPhotoUrl: string | null;
   readonly approvalId: string | null;
   readonly requiresReplacementReason: boolean;
+  readonly lastFederationDecision?: {
+    readonly status: "approved" | "rejected";
+    readonly decidedAt: string;
+    readonly reasonCode: string | null;
+    readonly reasonText: string | null;
+  } | null;
 }
 
 interface UploadIntentResponse {

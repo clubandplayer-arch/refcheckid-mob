@@ -31,3 +31,25 @@ it("sends the staff ID, replacement reason and photo bytes through the official 
   expect(api.mock.calls[1][0]).toBe("/photos/uploads/upload/complete");
   expect(JSON.parse(api.mock.calls[1][1]?.body as string)).toMatchObject({ contentBase64: "AQID" });
 });
+
+it("keeps definitive decisions separate from pending requests and preserves absent public reasons", async () => {
+  const photo = { status: "active", currentPhotoUrl: null, proposedPhotoUrl: null, approvalId: null, requiresReplacementReason: false };
+  const approved = { status: "approved", decidedAt: "2026-11-24T10:00:00Z", reasonCode: null, reasonText: null };
+  const rejected = { ...approved, status: "rejected", reasonCode: "quality_issue", reasonText: "Qualità immagine insufficiente" };
+  api.mockResolvedValue({ items: [
+    { ...photo, registrationId: "none", lastFederationDecision: null },
+    { ...photo, registrationId: "approved", lastFederationDecision: approved },
+    { ...photo, registrationId: "pending", status: "pending", lastFederationDecision: rejected },
+  ] });
+  const result = await fetchManagerPhotoStates("club", ["none", "approved", "pending"]);
+  expect(result.get("none")?.lastFederationDecision).toBeNull();
+  expect(result.get("approved")?.lastFederationDecision).toEqual(approved);
+  expect(result.get("pending")).toMatchObject({ status: "pending", lastFederationDecision: rejected });
+});
+
+it("propagates a denied roster block without returning partial results", async () => {
+  const denied = { status: 403, message: "Tesseramento fuori competenza." };
+  api.mockRejectedValue(denied);
+  await expect(fetchManagerPhotoStates("club", ["own", "other-club"])).rejects.toEqual(denied);
+  expect(api).toHaveBeenCalledTimes(1);
+});

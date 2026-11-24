@@ -190,9 +190,13 @@ export function MatchSheetWorkflow({ matchId, clubId: managerClubId }: { matchId
     setPlayerList((current) => {
       const next = [...current];
       const index = next.findIndex((player) => player.id === playerId);
-      const target = index + direction;
-      if (index < 0 || target < 0 || target >= next.length) return current;
-      [next[index], next[target]] = [next[target], next[index]];
+      const called = current.filter((player) => player.selected);
+      const calledIndex = called.findIndex((player) => player.id === playerId);
+      const neighbor = calledIndex < 0 ? undefined : called[calledIndex + direction];
+      if (!neighbor) return current;
+      const target = current.indexOf(neighbor);
+      const [player] = next.splice(index, 1);
+      next.splice(target, 0, player);
       return next;
     });
   }
@@ -217,13 +221,17 @@ export function MatchSheetWorkflow({ matchId, clubId: managerClubId }: { matchId
           <Text style={styles.cardTitle}>Convocazioni</Text>
           <PhotoApprovalNotice />
           <Input onChangeText={setQuery} placeholder="Cerca giocatore" value={query} />
+          <Button disabled={isReadOnly || !players.some((player) => !player.suspended && !player.selected)}
+            onPress={() => setPlayerList((current) => current.map((player) => player.suspended ? player : { ...player, selected: true }))}>Seleziona tutti</Button>
+          <Text accessibilityLiveRegion="polite">{calledPlayers.length} giocatori convocati</Text>
+          <Text style={styles.body}>Seleziona tutta la rosa idonea, anche con una ricerca attiva.</Text>
           {filteredPlayers.length === 0 ? <EmptyState message="Nessun giocatore trovato." /> : null}
           {filteredPlayers.map((player) => (
             <View key={player.id} style={styles.rowCard}>
               <Text style={styles.name}>{player.lastName} {player.firstName}</Text>
               <Text style={styles.body}>{getPlayerStatusLabel(player)}</Text>
               <PhotoCaptureControls photo={player.photo} failed={playerPhotos.isError} onUpload={(draft, reason) => uploadPhoto(player, draft, reason)} />
-              <Button disabled={isReadOnly || (player.suspended && !player.selected)} onPress={() => togglePlayer(player.id)}>{player.selected ? "Rimuovi" : "Convoca"}</Button>
+              <Button disabled={isReadOnly || player.suspended} onPress={() => togglePlayer(player.id)}>{player.selected ? "Rimuovi" : "Convoca"}</Button>
             </View>
           ))}
         </Card>
@@ -231,10 +239,13 @@ export function MatchSheetWorkflow({ matchId, clubId: managerClubId }: { matchId
       {step === 1 && !isReadOnly && calledPlayers.length > 0 ? (
         <Button disabled={defaults.isPending} onPress={() => defaults.mutate()}>Usa numeri e incarichi della distinta precedente</Button>
       ) : null}
-      {step === 1 ? <OrderStep players={calledPlayers} movePlayer={movePlayer} toggleCaptain={toggleCaptain} togglePlayer={togglePlayer} toggleViceCaptain={toggleViceCaptain} updatePlayer={updatePlayer} /> : null}
+      {step === 1 ? <OrderStep readOnly={isReadOnly} players={calledPlayers} movePlayer={movePlayer} toggleCaptain={toggleCaptain} togglePlayer={togglePlayer} toggleViceCaptain={toggleViceCaptain} updatePlayer={updatePlayer} /> : null}
       {step === 2 ? (
         <Card style={styles.section}>
           <Text style={styles.cardTitle}>Staff</Text>
+          <Button disabled={isReadOnly || !staff.some((member) => !member.selected)}
+            onPress={() => setStaffList((current) => current.map((member) => ({ ...member, selected: true })))}>Seleziona tutti</Button>
+          <Text accessibilityLiveRegion="polite">{calledStaff.length} membri dello staff selezionati</Text>
           {staff.length === 0 ? <EmptyState message="Nessuno staff disponibile." /> : null}
           {staff.map((member) => (
             <View key={member.id} style={styles.rowCard}>
@@ -304,6 +315,7 @@ function PhotoCaptureControls({ photo, failed, onUpload }: {
       const next = await (source === "camera" ? takePhotoWithCamera() : choosePhotoFromLibrary());
       if (!next) return;
       if (next.sizeBytes > maxPhotoSizeBytes) throw new Error("La foto supera 5 MB.");
+      setReason("");
       setDraft(next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Foto non disponibile.");
@@ -339,6 +351,12 @@ function PhotoCaptureControls({ photo, failed, onUpload }: {
     <View style={styles.section}>
       {photo.currentPhotoUrl ? <Image accessibilityLabel="Foto ufficiale" source={{ uri: photo.currentPhotoUrl }} style={styles.photo} /> : <Text style={styles.body}>Foto ufficiale assente</Text>}
       {photo.proposedPhotoUrl ? <Image accessibilityLabel="Foto proposta" source={{ uri: photo.proposedPhotoUrl }} style={styles.photo} /> : null}
+      {photo.lastFederationDecision ? (
+        <View>
+          <Text style={styles.body}>Ultima decisione federale: {photo.lastFederationDecision.status === "approved" ? "Approvata" : "Rifiutata"}</Text>
+          {photo.lastFederationDecision.reasonText ? <Text style={styles.body}>{photo.lastFederationDecision.reasonText}</Text> : null}
+        </View>
+      ) : null}
       {photo.status === "pending" ? <Text style={styles.body}>Richiesta già in attesa</Text> : <Button onPress={() => setOpen(true)}>Gestisci foto</Button>}
       <BottomSheet onClose={close} title="Foto tesserato" visible={open}>
         <View style={styles.section}>
@@ -354,8 +372,8 @@ function PhotoCaptureControls({ photo, failed, onUpload }: {
   );
 }
 
-function OrderStep({ players, movePlayer, toggleCaptain, togglePlayer, toggleViceCaptain, updatePlayer }: Readonly<{ players: readonly PlayerListItem[]; movePlayer: (id: string, direction: -1 | 1) => void; toggleCaptain: (id: string) => void; togglePlayer: (id: string) => void; toggleViceCaptain: (id: string) => void; updatePlayer: (id: string, patch: Partial<PlayerListItem>) => void }>) {
-  return <Card style={styles.section}><Text style={styles.cardTitle}>Ordine distinta</Text><Text style={styles.body}>Usa i pulsanti su/giù come alternativa mobile al drag & drop Web.</Text>{players.length === 0 ? <EmptyState message="Nessun convocato." /> : players.map((player, index) => <View key={player.id} style={styles.rowCard}><Text style={styles.name}>{index + 1}. {player.lastName} {player.firstName}</Text><Input editable={!player.suspended} keyboardType="number-pad" onChangeText={(value: string) => updatePlayer(player.id, { shirtNumber: value ? Number(value) : null })} placeholder="N° maglia" value={player.shirtNumber === null ? "" : String(player.shirtNumber)} /><View style={styles.buttonRow}>{lineupRoleOptions.map((option) => <Button key={option.value} disabled={player.role === option.value} onPress={() => updatePlayer(player.id, { role: option.value as PlayerLineupRole })}>{option.label}</Button>)}</View><View style={styles.buttonRow}><Button onPress={() => updatePlayer(player.id, { isGoalkeeper: !player.isGoalkeeper })}>{player.isGoalkeeper ? "No portiere" : "Portiere"}</Button><Button onPress={() => toggleCaptain(player.id)}>{player.isCaptain ? "No capitano" : "Capitano"}</Button><Button onPress={() => toggleViceCaptain(player.id)}>{player.isViceCaptain ? "No vice" : "Vice"}</Button></View><Text style={styles.body}>{getPlayerStatusLabel(player)}</Text><View style={styles.buttonRow}><Button disabled={index === 0} onPress={() => movePlayer(player.id, -1)}>Su</Button><Button disabled={index === players.length - 1} onPress={() => movePlayer(player.id, 1)}>Giù</Button><Button onPress={() => togglePlayer(player.id)} variant="danger">Rimuovi</Button></View></View>)}</Card>;
+function OrderStep({ readOnly, players, movePlayer, toggleCaptain, togglePlayer, toggleViceCaptain, updatePlayer }: Readonly<{ readOnly: boolean; players: readonly PlayerListItem[]; movePlayer: (id: string, direction: -1 | 1) => void; toggleCaptain: (id: string) => void; togglePlayer: (id: string) => void; toggleViceCaptain: (id: string) => void; updatePlayer: (id: string, patch: Partial<PlayerListItem>) => void }>) {
+  return <Card style={styles.section}><Text style={styles.cardTitle}>Ordine distinta</Text><Text style={styles.body}>Usa i pulsanti su/giù come alternativa mobile al drag & drop Web.</Text>{players.length === 0 ? <EmptyState message="Nessun convocato." /> : players.map((player, index) => <View key={player.id} style={styles.rowCard}><Text style={styles.name}>{index + 1}. {player.lastName} {player.firstName}</Text><Input editable={!readOnly && !player.suspended} keyboardType="number-pad" onChangeText={(value: string) => updatePlayer(player.id, { shirtNumber: value ? Number(value) : null })} placeholder="N° maglia" value={player.shirtNumber === null ? "" : String(player.shirtNumber)} /><View style={styles.buttonRow}>{lineupRoleOptions.map((option) => <Button key={option.value} disabled={readOnly || player.role === option.value} onPress={() => updatePlayer(player.id, { role: option.value as PlayerLineupRole })}>{option.label}</Button>)}</View><View style={styles.buttonRow}><Button disabled={readOnly} onPress={() => updatePlayer(player.id, { isGoalkeeper: !player.isGoalkeeper })}>{player.isGoalkeeper ? "No portiere" : "Portiere"}</Button><Button disabled={readOnly} onPress={() => toggleCaptain(player.id)}>{player.isCaptain ? "No capitano" : "Capitano"}</Button><Button disabled={readOnly} onPress={() => toggleViceCaptain(player.id)}>{player.isViceCaptain ? "No vice" : "Vice"}</Button></View><Text style={styles.body}>{getPlayerStatusLabel(player)}</Text><View style={styles.buttonRow}><Button disabled={readOnly || index === 0} onPress={() => movePlayer(player.id, -1)}>Su</Button><Button disabled={readOnly || index === players.length - 1} onPress={() => movePlayer(player.id, 1)}>Giù</Button><Button disabled={readOnly || player.suspended} onPress={() => togglePlayer(player.id)} variant="danger">Rimuovi</Button></View></View>)}</Card>;
 }
 
 function SummaryStep({ rules, isReadOnly, isSubmitting, onInvalidSubmit, onSubmit, players, staff }: Readonly<{ rules?: LineupRules; isReadOnly: boolean; isSubmitting: boolean; onInvalidSubmit: (message: string) => void; onSubmit: () => void; players: readonly PlayerListItem[]; staff: readonly StaffListItem[] }>) {
