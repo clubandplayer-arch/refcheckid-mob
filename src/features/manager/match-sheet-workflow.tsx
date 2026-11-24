@@ -1,10 +1,9 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { MobileTabs } from "@/components/ui/mobile-tabs";
 import { EmptyState, ErrorState, SkeletonBlock } from "@/components/ui/state";
 import { fetchLineupDefaults, fetchManagerMatchSheet, fetchManagerRoster, writeMatchSheet, type ApiMatchSheet, type LineupRules } from "@/lib/api-client";
 import { useSession } from "@/lib/session";
@@ -24,7 +23,6 @@ import type { PlayerLineupRole, PlayerListItem, StaffListItem } from "@/lib/type
 const EMPTY_PLAYERS: readonly PlayerListItem[] = [];
 const EMPTY_STAFF: readonly StaffListItem[] = [];
 const steps = ["Compilazione", "Ordine", "Staff", "Riepilogo"] as const;
-const stepTabs = steps.map((label, index) => ({ key: String(index), label: `${index + 1}. ${label}` }));
 const maxPhotoSizeBytes = 5 * 1024 * 1024;
 
 type PhotoDraft = NativePhotoDraft;
@@ -258,7 +256,6 @@ export function MatchSheetWorkflow({ matchId, clubId: managerClubId }: { matchId
         </Card>
       ) : null}
       {step === 3 ? <SummaryStep rules={sheet?.match?.lineupRules} isReadOnly={isReadOnly} isSubmitting={writeMutation.isPending} onInvalidSubmit={(message) => notify(message, "error")} onSubmit={() => saveLineup("submit")} players={calledPlayers} staff={calledStaff} /> : null}
-      <MatchSheetStepper currentStep={step} onChangeStep={setStep} />
     </Screen>
   );
 }
@@ -285,7 +282,24 @@ function restoreStaff(staff: readonly StaffListItem[], sheet?: ApiMatchSheet): r
 }
 
 function MatchSheetStepper({ currentStep, onChangeStep }: Readonly<{ currentStep: number; onChangeStep: (step: number) => void }>) {
-  return <MobileTabs accessibilityLabel="Step distinta" items={stepTabs} onChange={(key) => onChangeStep(Number(key))} value={String(currentStep)} />;
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View style={styles.stepMenu}>
+      <Button accessibilityLabel="Sezione distinta" accessibilityValue={{ text: steps[currentStep] }}
+        accessibilityState={{ expanded }} onPress={() => setExpanded((previous) => !previous)}>
+        {steps[currentStep]} {expanded ? "▴" : "▾"}
+      </Button>
+      {expanded ? steps.map((label, index) => (
+        <Pressable key={label} accessibilityRole="button" accessibilityState={{ selected: currentStep === index }}
+          style={[styles.stepOption, currentStep === index && styles.currentStep]} onPress={() => {
+            onChangeStep(index);
+            setExpanded(false);
+          }}>
+          <Text style={styles.name}>{label}</Text>
+        </Pressable>
+      )) : null}
+    </View>
+  );
 }
 
 function Screen({ children }: Readonly<{ children: ReactNode }>) {
@@ -303,6 +317,8 @@ function PhotoCaptureControls({ photo, failed, onUpload }: {
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PhotoDraft | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [reasonFocused, setReasonFocused] = useState(false);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -312,10 +328,11 @@ function PhotoCaptureControls({ photo, failed, onUpload }: {
   async function selectPhoto(source: "camera" | "library") {
     setError(null);
     try {
-      const next = await (source === "camera" ? takePhotoWithCamera() : choosePhotoFromLibrary());
+      const next = await (source === "camera" ? takePhotoWithCamera() : choosePhotoFromLibrary(false));
       if (!next) return;
       if (next.sizeBytes > maxPhotoSizeBytes) throw new Error("La foto supera 5 MB.");
       setReason("");
+      setConfirmed(false);
       setDraft(next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Foto non disponibile.");
@@ -326,12 +343,14 @@ function PhotoCaptureControls({ photo, failed, onUpload }: {
     if (uploading.current) return;
     setOpen(false);
     setDraft(null);
+    setConfirmed(false);
+    setReasonFocused(false);
     setReason("");
     setError(null);
   }
 
   async function submit() {
-    if (!draft || photo?.status === "pending" || uploading.current || (photo?.requiresReplacementReason && reason.trim().length < 20)) return;
+    if (!confirmed || !draft || photo?.status === "pending" || uploading.current || (photo?.requiresReplacementReason && reason.trim().length < 20)) return;
     uploading.current = true;
     setBusy(true);
     setError(null);
@@ -349,8 +368,20 @@ function PhotoCaptureControls({ photo, failed, onUpload }: {
 
   return (
     <View style={styles.section}>
-      {photo.currentPhotoUrl ? <Image accessibilityLabel="Foto ufficiale" source={{ uri: photo.currentPhotoUrl }} style={styles.photo} /> : <Text style={styles.body}>Foto ufficiale assente</Text>}
-      {photo.proposedPhotoUrl ? <Image accessibilityLabel="Foto proposta" source={{ uri: photo.proposedPhotoUrl }} style={styles.photo} /> : null}
+      <View style={styles.photoRow}>
+        {photo.currentPhotoUrl ? (
+          <View style={styles.photoItem}>
+            <Text style={styles.name}>Disponibile</Text>
+            <Image accessibilityLabel="Foto ufficiale" source={{ uri: photo.currentPhotoUrl }} style={[styles.photo, styles.availablePhoto]} />
+          </View>
+        ) : <Text style={styles.body}>Foto ufficiale assente</Text>}
+        {photo.proposedPhotoUrl ? (
+          <View style={styles.photoItem}>
+            <Text style={styles.name}>In attesa</Text>
+            <Image accessibilityLabel="Foto proposta" source={{ uri: photo.proposedPhotoUrl }} style={[styles.photo, styles.pendingPhoto]} />
+          </View>
+        ) : null}
+      </View>
       {photo.lastFederationDecision ? (
         <View>
           <Text style={styles.body}>Ultima decisione federale: {photo.lastFederationDecision.status === "approved" ? "Approvata" : "Rifiutata"}</Text>
@@ -360,11 +391,23 @@ function PhotoCaptureControls({ photo, failed, onUpload }: {
       {photo.status === "pending" ? <Text style={styles.body}>Richiesta già in attesa</Text> : <Button onPress={() => setOpen(true)}>Gestisci foto</Button>}
       <BottomSheet onClose={close} title="Foto tesserato" visible={open}>
         <View style={styles.section}>
-          <Button disabled={busy} onPress={() => void selectPhoto("camera")}>Scatta foto</Button>
-          <Button disabled={busy} onPress={() => void selectPhoto("library")}>Scegli dalla galleria</Button>
-          {draft ? <Image accessibilityLabel="Anteprima foto" source={{ uri: draft.previewUrl }} style={styles.previewImage} /> : null}
-          {draft && photo.requiresReplacementReason ? <Input editable={!busy} value={reason} onChangeText={setReason} placeholder="Motivazione (almeno 20 caratteri)" /> : null}
-          {draft ? <Button disabled={busy || photo.status === "pending" || (photo.requiresReplacementReason && reason.trim().length < 20)} onPress={() => void submit()}>{busy ? "Invio in corso" : "Invia richiesta"}</Button> : null}
+          {confirmed && photo.requiresReplacementReason ? (
+            <View style={styles.photoItem}>
+              <Text style={styles.name}>Motivazione obbligatoria</Text>
+              <Input accessibilityLabel="Motivazione obbligatoria" editable={!busy} multiline value={reason}
+                onFocus={() => setReasonFocused(true)} onBlur={() => setReasonFocused(false)}
+                onChangeText={setReason} placeholder="Almeno 20 caratteri" style={styles.reasonInput} />
+            </View>
+          ) : null}
+          {!reasonFocused ? (
+            <>
+              {draft ? <Image accessibilityLabel="Anteprima foto" source={{ uri: draft.previewUrl }} style={styles.previewImage} /> : null}
+              <Button disabled={busy} onPress={() => void selectPhoto("camera")}>{draft ? "Scatta di nuovo" : "Scatta foto"}</Button>
+              <Button disabled={busy} onPress={() => void selectPhoto("library")}>Scegli dalla galleria</Button>
+            </>
+          ) : null}
+          {draft && !confirmed ? <Button onPress={() => setConfirmed(true)}>Usa questa foto</Button> : null}
+          {confirmed ? <Button disabled={busy || photo.status === "pending" || (photo.requiresReplacementReason && reason.trim().length < 20)} onPress={() => void submit()}>{busy ? "Invio in corso" : "Invia richiesta"}</Button> : null}
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </View>
       </BottomSheet>
@@ -395,6 +438,14 @@ const styles = StyleSheet.create({
   errorText: { color: colors.danger, fontSize: 13, fontWeight: "600" },
   name: { color: colors.foreground, fontSize: 16, fontWeight: "700" },
   notice: { backgroundColor: "#fffbeb", borderColor: "#fcd34d", borderRadius: radii.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.md },
+  stepMenu: { gap: spacing.xs },
+  stepOption: { padding: spacing.md, borderRadius: radii.md, backgroundColor: colors.muted },
+  currentStep: { borderWidth: 1, borderColor: colors.primary },
+  photoRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", gap: spacing.md },
+  photoItem: { gap: spacing.xs },
+  availablePhoto: { borderWidth: 2, borderColor: "#15803d" },
+  pendingPhoto: { borderWidth: 2, borderColor: colors.danger },
+  reasonInput: { minHeight: 72, textAlignVertical: "top" },
   photo: { backgroundColor: colors.muted, borderRadius: radii.md, height: 96, width: 80 },
   previewImage: { height: 144, width: 108 },
   readOnly: { color: colors.mutedForeground, fontSize: 14 },

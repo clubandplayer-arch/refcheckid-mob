@@ -58,3 +58,7 @@ Usare **Operatori e inviti** per collegare ciascun dirigente alla sua società e
 Da `a81807a`, `GET /api/v1/platform/club-photo-roster/:id?registrations=…` restituisce `lastFederationDecision` per ogni tesseramento. Il mobile mostra lo stato dell'ultima decisione definitiva e il solo `reasonText` pubblico fornito dal server. Un nuovo pendente mantiene questa informazione. Un tesseramento fuori club fa fallire l'intero blocco con 403.
 
 Per gli esiti del confronto e la riproduzione dei sette flussi, vedi [Verifica parità mobile](MOBILE_PARITY_A81807A.md).
+
+## Prova interattiva da Codespaces
+
+Per usare il development client Android e ricaricare dal Codespace, aggiornare il ramo `work`, eseguire `npm ci` e avviare `npm run start:codespace -- --clear`. Il comando usa l'URL staging del profilo preview, salvo un override esplicito di `EXPO_PUBLIC_API_BASE_URL`, e avvia Metro in modalità headless con tunnel. Scansionare il QR nel development client. La modalità headless evita di avviare l'interfaccia desktop di React Native DevTools, che richiede librerie grafiche Linux come ATK. Dopo modifiche alle dipendenze native, reinstallare una build con profilo `development` prima di scansionare il QR.

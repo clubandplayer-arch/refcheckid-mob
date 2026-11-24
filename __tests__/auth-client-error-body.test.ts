@@ -20,3 +20,9 @@ it("uses the authenticated profile returned by /auth/me", async () => {
     .resolves.toMatchObject({ user: { role: "manager", clubIds: ["actual-club"] } });
   expect(mock).toHaveBeenLastCalledWith(expect.stringContaining("/auth/me"), { headers: { authorization: "Bearer access" } });
 });
+
+it("distinguishes an unreachable backend from rejected credentials", async () => {
+  globalThis.fetch = jest.fn(async () => { throw new Error("Connection refused"); });
+  await expect(authenticateWithPassword({ email: "x@example.test", password: "test" }))
+    .rejects.toMatchObject({ code: "NETWORK_ERROR", diagnostics: { corsOrNetworkError: "Connection refused" } });
+});

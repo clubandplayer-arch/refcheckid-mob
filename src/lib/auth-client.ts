@@ -1,7 +1,7 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import { isValidSession, type AppSession, type AuthenticatedUser } from "@/lib/session";
 
-export type AuthErrorCode = "INVALID_CREDENTIALS" | "USER_NOT_FOUND" | "ACCOUNT_DISABLED";
+export type AuthErrorCode = "NETWORK_ERROR" | "INVALID_CREDENTIALS" | "USER_NOT_FOUND" | "ACCOUNT_DISABLED";
 
 export interface AuthDiagnostics {
   readonly url: string;
@@ -37,7 +37,7 @@ export async function authenticateWithPassword(input: {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Network/CORS error";
     console.warn("[RefCheckID][auth] login network or CORS failure", { error: message, url });
-    throw new AuthError("INVALID_CREDENTIALS", "Accesso non riuscito.", {
+    throw new AuthError("NETWORK_ERROR", "Verifica la connessione e l’URL del backend.", {
       corsOrNetworkError: message,
       url,
     });

@@ -10,13 +10,13 @@ export type NativePhotoDraft = {
 export async function takePhotoWithCamera(): Promise<NativePhotoDraft | null> {
   const permission = await ImagePicker.requestCameraPermissionsAsync?.();
   if (permission && !permission.granted) throw new Error("Autorizza l’uso della fotocamera per scattare una foto.");
-  return pickPhoto(() => ImagePicker.launchCameraAsync(buildImagePickerOptions()));
+  return pickPhoto(() => ImagePicker.launchCameraAsync(buildImagePickerOptions(false)));
 }
 
-export async function choosePhotoFromLibrary(): Promise<NativePhotoDraft | null> {
+export async function choosePhotoFromLibrary(allowsEditing = true): Promise<NativePhotoDraft | null> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync?.();
   if (permission && !permission.granted) throw new Error("Autorizza l’accesso alla galleria per scegliere una foto.");
-  return pickPhoto(() => ImagePicker.launchImageLibraryAsync(buildImagePickerOptions()));
+  return pickPhoto(() => ImagePicker.launchImageLibraryAsync(buildImagePickerOptions(allowsEditing)));
 }
 
 async function pickPhoto(launch: () => Promise<ImagePicker.ImagePickerResult>): Promise<NativePhotoDraft | null> {
@@ -33,9 +33,9 @@ async function pickPhoto(launch: () => Promise<ImagePicker.ImagePickerResult>): 
   };
 }
 
-function buildImagePickerOptions(): ImagePicker.ImagePickerOptions {
+function buildImagePickerOptions(allowsEditing: boolean): ImagePicker.ImagePickerOptions {
   return {
-    allowsEditing: true,
+    allowsEditing,
     base64: true,
     mediaTypes: ["images"],
     quality: 0.9,

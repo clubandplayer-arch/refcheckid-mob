@@ -27,7 +27,7 @@ function ManagerDashboard() {
 
   if (dashboardQuery.isLoading) {
     return (
-      <MobileScreen contentStyle={styles.screen}>
+      <MobileScreen edges={["left", "right"]} contentStyle={styles.screen}>
         <SkeletonBlock />
       </MobileScreen>
     );
@@ -35,7 +35,7 @@ function ManagerDashboard() {
 
   if (dashboardQuery.isError) {
     return (
-      <MobileScreen contentStyle={styles.screen}>
+      <MobileScreen edges={["left", "right"]} contentStyle={styles.screen}>
         <ErrorState
           message={dashboardQuery.error?.message ?? "Errore API"}
           onRetry={() => void dashboardQuery.refetch()}
@@ -47,14 +47,14 @@ function ManagerDashboard() {
   const dashboard = dashboardQuery.data;
   if (!dashboard) {
     return (
-      <MobileScreen contentStyle={styles.screen}>
+      <MobileScreen edges={["left", "right"]} contentStyle={styles.screen}>
         <EmptyState message="Dashboard dirigente non disponibile." />
       </MobileScreen>
     );
   }
 
   return (
-    <MobileScreen contentStyle={styles.screen}>
+    <MobileScreen edges={["left", "right"]} contentStyle={styles.screen}>
       <IdentityHeader role="manager" />
       <View style={styles.header}>
         <View style={styles.headingText}>
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   matchDetails: { gap: spacing.xs },
   notifications: { gap: spacing.sm },
   opponent: { color: colors.foreground, fontSize: 18, fontWeight: "700" },
-  screen: { gap: spacing.lg },
+  screen: { gap: spacing.md, paddingTop: spacing.xs },
   statusPill: {
     alignSelf: "flex-start",
     backgroundColor: colors.muted,

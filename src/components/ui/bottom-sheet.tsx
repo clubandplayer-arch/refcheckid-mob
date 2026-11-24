@@ -15,7 +15,7 @@ export function BottomSheet({ children, onClose, title, visible }: BottomSheetPr
   const insets = useSafeAreaInsets();
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.overlay}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.overlay}>
         <Pressable accessibilityLabel="Chiudi pannello" accessibilityRole="button" onPress={onClose} style={styles.backdrop} />
         <View
           accessibilityViewIsModal
@@ -25,7 +25,7 @@ export function BottomSheet({ children, onClose, title, visible }: BottomSheetPr
             <Text style={styles.title}>{title}</Text>
             <Button onPress={onClose}>Chiudi</Button>
           </View>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">{children}</ScrollView>
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">{children}</ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -37,6 +37,7 @@ const styles = StyleSheet.create({
   content: { gap: spacing.md },
   header: { alignItems: "center", flexDirection: "row", gap: spacing.md, justifyContent: "space-between" },
   overlay: { backgroundColor: "rgba(15, 23, 42, 0.35)", flex: 1, justifyContent: "flex-end" },
+  scroll: { flexShrink: 1 },
   sheet: {
     backgroundColor: colors.background,
     borderTopLeftRadius: radii.xl,

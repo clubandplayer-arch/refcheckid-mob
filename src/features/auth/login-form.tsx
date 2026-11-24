@@ -13,6 +13,7 @@ import { useSession } from "@/lib/session";
 const isDevelopment = process.env.NODE_ENV !== "production";
 
 const errorMessages = {
+  NETWORK_ERROR: "Impossibile raggiungere il server.",
   ACCOUNT_DISABLED: "Account disabilitato.",
   INVALID_CREDENTIALS: "Credenziali errate.",
   USER_NOT_FOUND: "Utente inesistente.",
